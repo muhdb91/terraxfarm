@@ -6,8 +6,8 @@ import { TabType, Stock, SaleItem, AssetImages, IngotRecipe, UserRole, MarketIte
 
 // --- SUPABASE CONFIGURATION ---
 // Replace these strings with your actual Supabase URL and Anon Key
-const SUPABASE_URL = 'https://your-project-url.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-key';
+const SUPABASE_URL = 'https://kgstbnbsqvxrigsgpslf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtnc3RibmJzcXZ4cmlnc2dwc2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjcwNTEsImV4cCI6MjA4NTYwMzA1MX0.69-65de7EKEDqFKFqcn585vtre10OcotZFeRYV14pTY';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ------------------------------
