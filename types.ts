@@ -39,19 +39,19 @@ export interface Stock {
 export interface MarketItemTemplate {
   id: string;
   name: string;
-  iconUrl: string;
+  icon_url: string; // Changed from iconUrl
 }
 
 export interface SaleItem {
   id: string;
-  templateId: string; // References MarketItemTemplate
-  name: string;      // Cached from template for easier display
+  templateId: string;
+  name: string;
   price: string;
   description: string;
-  imageUrl: string;  // Cached from template
+  imageUrl: string;
   seller: string;
   isPro: boolean;
-  createdAt: number;
+  created_at?: string;
 }
 
 export interface AssetImages {
