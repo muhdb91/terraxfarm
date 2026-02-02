@@ -39,18 +39,18 @@ export interface Stock {
 export interface MarketItemTemplate {
   id: string;
   name: string;
-  icon_url: string; // Changed from iconUrl
+  icon_url: string;
 }
 
 export interface SaleItem {
   id: string;
-  templateId: string;
+  template_id: string;
   name: string;
   price: string;
   description: string;
-  imageUrl: string;
+  image_url: string;
   seller: string;
-  isPro: boolean;
+  is_pro: boolean;
   created_at?: string;
 }
 
