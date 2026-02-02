@@ -34,6 +34,7 @@ export interface Stock {
   silverIngot: number;
   goldIngot: number;
   adamantiumIngot: number;
+  dragonGlassIngot: number;
 }
 
 export interface MarketItemTemplate {
@@ -50,8 +51,23 @@ export interface SaleItem {
   description: string;
   image_url: string;
   seller: string;
+  seller_avatar?: string;
   is_pro: boolean;
   created_at?: string;
+}
+
+export interface AuthorizedKey {
+  id: string;
+  role: string;
+  key_value: string;
+  display_name: string;
+  avatar_url: string;
+}
+
+export interface Notification {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
 }
 
 export interface AssetImages {
