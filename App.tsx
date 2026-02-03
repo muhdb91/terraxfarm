@@ -8,7 +8,18 @@ const SUPABASE_URL = 'https://kgstbnbsqvxrigsgpslf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtnc3RibmJzcXZ4cmlnc2dwc2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjcwNTEsImV4cCI6MjA4NTYwMzA1MX0.69-65de7EKEDqFKFqcn585vtre10OcotZFeRYV14pTY';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-// ------------------------------
+
+// --- PRESET AVATAR GALLERY ---
+const PRESET_AVATARS = [
+  'https://api.dicebear.com/7.x/bottts/svg?seed=TerraX-1',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=TerraX-2',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=TerraX-3',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=Nova',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=Pulse',
+  'https://api.dicebear.com/7.x/pixel-art/svg?seed=Pilot',
+];
 
 const ORE_ICONS: { [key: string]: string } = {
   'Coal': '⬛',
@@ -20,34 +31,20 @@ const ORE_ICONS: { [key: string]: string } = {
   'Dragon Glass Ore': '🟣',
 };
 
-// --- HELPER: CALCULATE MAX CRAFTABLE ---
 const calculateMaxIngots = (recipeId: string, stock: Stock): number => {
   const recipe = RECIPES.find(r => r.id === recipeId);
   if (!recipe) return 0;
-
   const oreMapping: Record<string, keyof Stock> = {
-    'Coal': 'coal',
-    'Copper Ore': 'copperOre',
-    'Iron Ore': 'ironOre',
-    'Silver Ore': 'silverOre',
-    'Gold Ore': 'goldOre',
-    'Adamantium Ore': 'adamantiumOre',
-    'Dragon Glass Ore': 'dragonGlassOre'
+    'Coal': 'coal', 'Copper Ore': 'copperOre', 'Iron Ore': 'ironOre', 'Silver Ore': 'silverOre',
+    'Gold Ore': 'goldOre', 'Adamantium Ore': 'adamantiumOre', 'Dragon Glass Ore': 'dragonGlassOre'
   };
-
   const limits: number[] = [];
-  if (recipe.requirements.coal > 0) {
-    limits.push(Math.floor(stock.coal / recipe.requirements.coal));
-  }
+  if (recipe.requirements.coal > 0) limits.push(Math.floor(stock.coal / recipe.requirements.coal));
   const oreKey = oreMapping[recipe.requirements.oreType];
-  if (oreKey && recipe.requirements.ore > 0) {
-    limits.push(Math.floor(stock[oreKey] / recipe.requirements.ore));
-  }
+  if (oreKey && recipe.requirements.ore > 0) limits.push(Math.floor(stock[oreKey] / recipe.requirements.ore));
   if (recipe.requirements.previousIngot) {
     const prevKey = recipe.requirements.previousIngot.type as keyof Stock;
-    if (stock[prevKey] !== undefined) {
-      limits.push(Math.floor(stock[prevKey] / recipe.requirements.previousIngot.amount));
-    }
+    if (stock[prevKey] !== undefined) limits.push(Math.floor(stock[prevKey] / recipe.requirements.previousIngot.amount));
   }
   return limits.length > 0 ? Math.min(...limits) : 0;
 };
@@ -60,6 +57,7 @@ const App: React.FC = () => {
   // UI State
   const [loginInput, setLoginInput] = useState({ handle: '', key: '' });
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [loginType, setLoginType] = useState<'admin' | 'pro'>('admin');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -80,28 +78,22 @@ const App: React.FC = () => {
     };
   });
 
-  // Admin Forms
   const [newListing, setNewListing] = useState({ templateId: '', price: '', description: '', searchQuery: '' });
   const [adminNewItem, setAdminNewItem] = useState({ name: '', iconBase64: '' });
-  const [adminNewUser, setAdminNewUser] = useState({ role: 'pro', display_name: '', key_value: '', avatar_url: '' });
+  const [adminNewUser, setAdminNewUser] = useState({ role: 'pro', display_name: '', key_value: '', avatar_url: PRESET_AVATARS[0] });
 
-  // --- NOTIFICATION HELPER ---
   const notify = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 4500);
+    setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4500);
   };
 
-  // --- DATABASE SYNC LOGIC ---
   const fetchGlobalData = async () => {
     setIsSyncing(true);
     try {
       const { data: templates } = await supabase.from('market_templates').select('*').order('name');
       const { data: ads } = await supabase.from('sale_listings').select('*').order('created_at', { ascending: false });
       const { data: skins } = await supabase.from('forge_skins').select('*');
-      
       if (templates) setItemDatabase(templates);
       if (ads) setSaleItems(ads);
       if (skins) {
@@ -109,43 +101,24 @@ const App: React.FC = () => {
           skins.forEach(s => skinMap[s.recipe_id] = s.image_url);
           setCloudSkins(skinMap);
       }
-
       if (userRole === 'admin') {
         const { data: users } = await supabase.from('authorized_keys').select('*').order('role');
         if (users) setUserRegistry(users);
       }
-    } catch (error) {
-      console.error("Cloud Error:", error);
-    } finally {
-      setIsSyncing(false);
-    }
+    } catch (e) { console.error(e); } finally { setIsSyncing(false); }
   };
 
-  useEffect(() => {
-    fetchGlobalData();
-  }, [userRole]);
+  useEffect(() => { fetchGlobalData(); }, [userRole]);
+  useEffect(() => { localStorage.setItem('terrax_stock', JSON.stringify(stock)); }, [stock]);
 
-  useEffect(() => {
-    localStorage.setItem('terrax_stock', JSON.stringify(stock));
-  }, [stock]);
-
-  const filteredDatabase = useMemo(() => {
-    return itemDatabase.filter(item => 
-      item.name.toLowerCase().includes(newListing.searchQuery.toLowerCase())
-    );
-  }, [itemDatabase, newListing.searchQuery]);
-
-  // --- ACTIONS ---
-
-  const handleStockChange = (field: keyof Stock, value: string) => {
-    const num = parseInt(value) || 0;
-    setStock(prev => ({ ...prev, [field]: num }));
-  };
+  const filteredDatabase = useMemo(() => itemDatabase.filter(item => 
+    item.name.toLowerCase().includes(newListing.searchQuery.toLowerCase())
+  ), [itemDatabase, newListing.searchQuery]);
 
   const handleAvatarFileChange = (file: File | null, callback: (base64: string) => void) => {
     if (!file) return;
-    if (file.size > 51200) { // 50KB limit
-      notify("File too large! Max size is 50KB.", "error");
+    if (file.size > 51200) {
+      notify("File too large! Max 50KB.", "error");
       return;
     }
     const reader = new FileReader();
@@ -153,101 +126,17 @@ const App: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleCloudSkinUpload = async (id: string, file: File | null) => {
-    if (!file) return;
+  const handleUpdateProfileAvatar = async (url: string) => {
+    if (!currentUser) return;
     setIsSyncing(true);
-    handleAvatarFileChange(file, async (base64) => {
-      const { error } = await supabase.from('forge_skins').upsert({
-          recipe_id: id,
-          image_url: base64
-      });
-      if (!error) {
-        notify("Global forge icon updated.", "success");
-        fetchGlobalData();
-      } else notify("Skin Error: " + error.message, "error");
-      setIsSyncing(false);
-    });
-  };
-
-  const handleListingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const template = itemDatabase.find(t => t.id === newListing.templateId);
-    if (!template || !newListing.price) return;
-
-    setIsSyncing(true);
-    const { error } = await supabase.from('sale_listings').insert([{
-      template_id: template.id,
-      name: template.name,
-      price: newListing.price,
-      description: newListing.description,
-      image_url: template.icon_url,
-      seller: currentUser?.display_name || 'Anonymous',
-      seller_avatar: currentUser?.avatar_url || '',
-      is_pro: userRole === 'pro',
-    }]);
-
+    const { error } = await supabase.from('authorized_keys').update({ avatar_url: url }).eq('id', currentUser.id);
     if (!error) {
-      setNewListing({ templateId: '', price: '', description: '', searchQuery: '' });
-      notify("Market listing successfully synced.", "success");
+      setCurrentUser({ ...currentUser, avatar_url: url });
+      notify("Profile avatar updated!", "success");
+      setShowProfileModal(false);
       fetchGlobalData();
-    } else notify("Market Error: " + error.message, "error");
+    } else notify("Update failed: " + error.message, "error");
     setIsSyncing(false);
-  };
-
-  // Fix: Added missing handleDeleteAd function to handle market item deletions
-  const handleDeleteAd = async (id: string) => {
-    setIsSyncing(true);
-    const { error } = await supabase.from('sale_listings').delete().eq('id', id);
-    if (!error) {
-      notify("Market listing terminated.", "info");
-      fetchGlobalData();
-    } else {
-      notify("Deletion Error: " + error.message, "error");
-    }
-    setIsSyncing(false);
-  };
-
-  const handleAdminItemAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adminNewItem.name || !adminNewItem.iconBase64) return;
-    setIsSyncing(true);
-    const { error } = await supabase.from('market_templates').insert([{
-      name: adminNewItem.name,
-      icon_url: adminNewItem.iconBase64 
-    }]);
-    if (!error) {
-      setAdminNewItem({ name: '', iconBase64: '' });
-      notify("Registry item added to cloud.", "success");
-      fetchGlobalData();
-    } else notify("Registry Error: " + error.message, "error");
-    setIsSyncing(false);
-  };
-
-  const handleAdminCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adminNewUser.display_name || !adminNewUser.key_value) return;
-    setIsSyncing(true);
-    const avatar = adminNewUser.avatar_url || `https://api.dicebear.com/7.x/identicon/svg?seed=${adminNewUser.display_name}`;
-    const { error } = await supabase.from('authorized_keys').insert([{
-      role: adminNewUser.role,
-      display_name: adminNewUser.display_name,
-      key_value: adminNewUser.key_value,
-      avatar_url: avatar
-    }]);
-    if (!error) {
-      setAdminNewUser({ role: 'pro', display_name: '', key_value: '', avatar_url: '' });
-      notify(`${adminNewUser.role.toUpperCase()} authorized successfully.`, "success");
-      fetchGlobalData();
-    } else notify("Auth Error: " + error.message, "error");
-    setIsSyncing(false);
-  };
-
-  const handleAdminDeleteUser = async (id: string) => {
-    if (id === currentUser?.id) return notify("Deletion blocked: Active session.", "error");
-    setIsSyncing(true);
-    await supabase.from('authorized_keys').delete().eq('id', id);
-    notify("Cloud access revoked for user.", "info");
-    fetchGlobalData();
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -264,7 +153,7 @@ const App: React.FC = () => {
         .single();
 
       if (error || !data) {
-        notify("Access Denied: Check Handle and Key.", "error");
+        notify("Access Denied: Invalid ID or Password.", "error");
       } else {
         setUserRole(loginType);
         setCurrentUser(data);
@@ -272,22 +161,81 @@ const App: React.FC = () => {
         setShowLoginModal(false);
         setLoginInput({ handle: '', key: '' });
       }
-    } catch (err) {
-      notify("Cloud connection timed out.", "error");
-    } finally {
-      setIsVerifying(false);
+    } catch (err) { notify("Sync Timeout.", "error"); } finally { setIsVerifying(false); }
+  };
+
+  const handleListingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const template = itemDatabase.find(t => t.id === newListing.templateId);
+    if (!template || !newListing.price) return;
+    setIsSyncing(true);
+    const { error } = await supabase.from('sale_listings').insert([{
+      template_id: template.id, name: template.name, price: newListing.price, description: newListing.description,
+      image_url: template.icon_url, seller: currentUser?.display_name, seller_avatar: currentUser?.avatar_url, is_pro: userRole === 'pro',
+    }]);
+    if (!error) {
+      setNewListing({ templateId: '', price: '', description: '', searchQuery: '' });
+      notify("Listing published to cloud.", "success");
+      fetchGlobalData();
+    } else notify("Market Error: " + error.message, "error");
+    setIsSyncing(false);
+  };
+
+  const handleDeleteAd = async (id: string) => {
+    setIsSyncing(true);
+    await supabase.from('sale_listings').delete().eq('id', id);
+    notify("Listing terminated.", "info");
+    fetchGlobalData();
+    setIsSyncing(false);
+  };
+
+  const handleStockChange = (field: keyof Stock, val: string) => {
+    const num = parseInt(val) || 0;
+    setStock(prev => ({ ...prev, [field]: num }));
+  };
+
+  const handleAdminCreateUser = async (e: React.FormEvent) => {
+    if (!adminNewUser.display_name || !adminNewUser.key_value) {
+      notify("ID and Key are required for new registry entry.", "error");
+      return;
     }
+    setIsSyncing(true);
+    const { error } = await supabase.from('authorized_keys').insert([{
+      role: adminNewUser.role,
+      display_name: adminNewUser.display_name.toUpperCase(), // Force normalization
+      key_value: adminNewUser.key_value,
+      avatar_url: adminNewUser.avatar_url
+    }]);
+    if (!error) {
+      setAdminNewUser({ role: 'pro', display_name: '', key_value: '', avatar_url: PRESET_AVATARS[0] });
+      notify("Identity authorized and synchronized.", "success");
+      fetchGlobalData();
+    } else notify("Auth Registry Sync Failed: " + error.message, "error");
+    setIsSyncing(false);
+  };
+
+  const handleAdminDeleteUser = async (id: string) => {
+    if (id === currentUser?.id) {
+      notify("Access Violation: Cannot revoke root terminal access for self.", "error");
+      return;
+    }
+    setIsSyncing(true);
+    const { error } = await supabase.from('authorized_keys').delete().eq('id', id);
+    if (!error) {
+      notify("Identity access revoked and purged.", "info");
+      fetchGlobalData();
+    } else notify("Registry Purge Failed: " + error.message, "error");
+    setIsSyncing(false);
   };
 
   return (
     <div className="min-h-screen bg-[#020617] text-slate-100 p-4 md:p-8 font-inter">
-      {/* Sci-Fi Toast System */}
+      {/* Toast Overlay */}
       <div className="fixed top-8 right-8 z-[200] space-y-4 pointer-events-none">
         {notifications.map(n => (
-          <div key={n.id} className={`px-6 py-5 rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border backdrop-blur-3xl animate-in fade-in slide-in-from-right-10 flex items-center space-x-5 pointer-events-auto min-w-[340px] ${
+          <div key={n.id} className={`px-6 py-5 rounded-3xl shadow-2xl border backdrop-blur-3xl animate-in fade-in slide-in-from-right-10 flex items-center space-x-5 pointer-events-auto min-w-[340px] ${
             n.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' :
-            n.type === 'error' ? 'bg-rose-500/10 border-rose-500/50 text-rose-400' :
-            'bg-sky-500/10 border-sky-500/50 text-sky-400'
+            n.type === 'error' ? 'bg-rose-500/10 border-rose-500/50 text-rose-400' : 'bg-sky-500/10 border-sky-500/50 text-sky-400'
           }`}>
             <div className={`w-3 h-3 rounded-full ${n.type === 'success' ? 'bg-emerald-500 animate-pulse' : n.type === 'error' ? 'bg-rose-500' : 'bg-sky-500'}`}></div>
             <p className="text-xs font-bold tracking-widest uppercase">{n.message}</p>
@@ -303,7 +251,14 @@ const App: React.FC = () => {
         </div>
         <h1 className="text-7xl font-orbitron font-bold tracking-tighter bg-gradient-to-b from-cyan-300 via-purple-500 to-orange-400 bg-clip-text text-transparent mb-6">TERRAX</h1>
         <div className="flex justify-center items-center space-x-6 text-slate-400 text-[10px] font-bold tracking-[0.3em] uppercase">
-          {currentUser && <img src={currentUser.avatar_url} className="w-8 h-8 rounded-full border-2 border-slate-800 bg-slate-900 shadow-xl" alt="avatar" />}
+          {currentUser && (
+            <button onClick={() => setShowProfileModal(true)} className="relative group">
+              <img src={currentUser.avatar_url} className="w-10 h-10 rounded-full border-2 border-cyan-500/30 bg-slate-900 shadow-xl group-hover:border-cyan-400 transition-all" alt="avatar" />
+              <div className="absolute -bottom-1 -right-1 bg-cyan-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <svg className="w-2 h-2 text-slate-950" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
+              </div>
+            </button>
+          )}
           <span>FORGE</span>
           <span className="w-1.5 h-1.5 rounded-full bg-slate-800"></span>
           <span>MARKET</span>
@@ -326,9 +281,7 @@ const App: React.FC = () => {
         {activeTab === 'calculator' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="bg-slate-900/30 p-10 rounded-[2.5rem] border border-slate-800/50 backdrop-blur-3xl h-fit sticky top-8 shadow-2xl">
-              <h2 className="text-2xl font-orbitron font-bold mb-10 flex items-center tracking-widest text-slate-200">
-                <span className="mr-4 text-cyan-400 opacity-50 text-3xl">/</span> RESOURCES
-              </h2>
+              <h2 className="text-2xl font-orbitron font-bold mb-10 flex items-center tracking-widest text-slate-200"><span className="mr-4 text-cyan-400 opacity-50 text-3xl">/</span> RESOURCES</h2>
               <div className="space-y-8">
                 <div className="grid grid-cols-2 gap-5">
                   <StockInput label="Coal" value={stock.coal} onChange={(v) => handleStockChange('coal', v)} icon={ORE_ICONS['Coal']} />
@@ -363,9 +316,7 @@ const App: React.FC = () => {
                         </div>
                         <div>
                           <h3 className={`text-2xl font-orbitron font-bold ${recipe.color} tracking-tight`}>{recipe.name}</h3>
-                          <div className="text-[10px] text-slate-500 uppercase font-bold flex items-center tracking-widest mt-2">
-                            {recipe.requirements.oreType} <span className="ml-2">{ORE_ICONS[recipe.requirements.oreType]}</span>
-                          </div>
+                          <div className="text-[10px] text-slate-500 uppercase font-bold flex items-center tracking-widest mt-2">{recipe.requirements.oreType} <span className="ml-2">{ORE_ICONS[recipe.requirements.oreType]}</span></div>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3 mb-10 text-center uppercase tracking-widest font-bold text-[9px]">
@@ -394,10 +345,7 @@ const App: React.FC = () => {
           <div className="space-y-12 animate-in fade-in duration-700">
             {(userRole === 'admin' || userRole === 'pro') && (
               <div className={`bg-slate-900/40 border-2 ${userRole === 'admin' ? 'border-amber-500/20 shadow-amber-900/20' : 'border-purple-500/20 shadow-purple-900/20'} p-12 rounded-[3.5rem] max-w-4xl mx-auto backdrop-blur-3xl shadow-2xl relative overflow-hidden`}>
-                <h2 className="text-3xl font-orbitron font-bold mb-10 flex items-center relative text-white">
-                  <span className={`mr-5 p-4 ${userRole === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-purple-500/20 text-purple-400'} rounded-[1.5rem] shadow-2xl`}>📡</span> 
-                  CLOUD BROADCAST
-                </h2>
+                <h2 className="text-3xl font-orbitron font-bold mb-10 flex items-center relative text-white"><span className={`mr-5 p-4 ${userRole === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-purple-500/20 text-purple-400'} rounded-[1.5rem] shadow-2xl`}>📡</span> CLOUD BROADCAST</h2>
                 <form onSubmit={handleListingSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-10 relative">
                   <div className="space-y-8">
                     <div>
@@ -423,7 +371,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="space-y-8">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 ml-2">Broadcaster Memo</label>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 ml-2">Memo</label>
                       <textarea placeholder="Trade conditions..." className="w-full bg-slate-950 border-2 border-slate-800 rounded-3xl px-7 py-5 h-[142px] focus:outline-none focus:border-cyan-500 transition-all text-sm resize-none font-medium" value={newListing.description} onChange={(e) => setNewListing({...newListing, description: e.target.value})}></textarea>
                     </div>
                     <button type="submit" disabled={isSyncing} className={`w-full py-6 rounded-3xl font-orbitron font-extrabold tracking-widest text-xs transition-all shadow-2xl ${userRole === 'admin' ? 'bg-amber-600 hover:bg-amber-500 text-slate-950' : 'bg-purple-600 hover:bg-purple-500 text-white'} disabled:opacity-50 uppercase`}>
@@ -436,11 +384,9 @@ const App: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
               {saleItems.map(item => (
-                <div key={item.id} className="group bg-slate-900/40 border border-slate-800/60 rounded-[2.5rem] overflow-hidden hover:border-cyan-500/30 transition-all flex flex-col hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)]">
+                <div key={item.id} className="group bg-slate-900/40 border border-slate-800/60 rounded-[2.5rem] overflow-hidden hover:border-cyan-500/30 transition-all flex flex-col hover:shadow-2xl">
                   <div className="p-10 flex items-start space-x-6">
-                    <div className="w-[72px] h-[72px] bg-slate-950 rounded-2xl flex items-center justify-center border-2 border-slate-800 shadow-2xl flex-shrink-0">
-                      <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
-                    </div>
+                    <div className="w-[72px] h-[72px] bg-slate-950 rounded-2xl flex items-center justify-center border-2 border-slate-800 shadow-2xl flex-shrink-0"><img src={item.image_url} alt={item.name} className="w-full h-full object-contain" /></div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
                         <h3 className="text-2xl font-orbitron font-bold truncate text-white tracking-tight">{item.name}</h3>
@@ -449,11 +395,7 @@ const App: React.FC = () => {
                       <div className="text-cyan-400 font-mono font-bold text-lg mt-2 tracking-tighter">{item.price}</div>
                     </div>
                   </div>
-                  <div className="px-10 pb-10 pt-2 flex-1">
-                    <div className="bg-slate-950/40 rounded-3xl p-6 border border-slate-800/40 h-full text-slate-400 text-xs italic leading-relaxed">
-                        <p className="line-clamp-4">"{item.description || 'Verified Trade Signal'}"</p>
-                    </div>
-                  </div>
+                  <div className="px-10 pb-10 pt-2 flex-1"><div className="bg-slate-950/40 rounded-3xl p-6 border border-slate-800/40 h-full text-slate-400 text-xs italic leading-relaxed line-clamp-4">"{item.description || 'Verified Trade Signal'}"</div></div>
                   <div className="bg-slate-950/80 px-10 py-6 border-t border-slate-800/60 flex items-center justify-between backdrop-blur-xl">
                     <div className="flex items-center space-x-4">
                       {item.seller_avatar && <img src={item.seller_avatar} className="w-8 h-8 rounded-full border-2 border-slate-800 bg-slate-900 shadow-xl" alt="seller" />}
@@ -471,79 +413,32 @@ const App: React.FC = () => {
 
         {activeTab === 'assets' && userRole === 'admin' && (
           <div className="space-y-16 pb-24 animate-in fade-in duration-700">
-            {/* User Access Management */}
             <div className="bg-slate-900/40 border border-slate-800/50 p-12 rounded-[3.5rem] shadow-2xl backdrop-blur-3xl">
               <h2 className="text-3xl font-orbitron font-bold mb-10 text-amber-400 uppercase tracking-tighter">Authorized Registry</h2>
-              <form onSubmit={handleAdminCreateUser} className="grid grid-cols-1 md:grid-cols-4 gap-8 bg-slate-950/50 p-10 rounded-[2.5rem] mb-16 border border-slate-800/50">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Clearance</label>
-                    <select className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-bold text-white appearance-none" value={adminNewUser.role} onChange={(e) => setAdminNewUser({...adminNewUser, role: e.target.value})}>
-                      <option value="pro">Pro Traveler</option>
-                      <option value="admin">Root Admin</option>
-                    </select>
+              <form onSubmit={(e) => { e.preventDefault(); handleAdminCreateUser(e); }} className="grid grid-cols-1 md:grid-cols-4 gap-8 bg-slate-950/50 p-10 rounded-[2.5rem] mb-16 border border-slate-800/50">
+                  <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Clearance</label>
+                    <select className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-bold text-white appearance-none" value={adminNewUser.role} onChange={(e) => setAdminNewUser({...adminNewUser, role: e.target.value})}><option value="pro">Pro Traveler</option><option value="admin">Root Admin</option></select>
                   </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Trader Handle</label>
-                    <input type="text" placeholder="e.g. Atlas-01" className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-bold" value={adminNewUser.display_name} onChange={(e) => setAdminNewUser({...adminNewUser, display_name: e.target.value})} />
+                  <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">ID (Trader Handle)</label>
+                    <input type="text" placeholder="e.g. ATLAS-01" className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-bold uppercase" value={adminNewUser.display_name} onChange={(e) => setAdminNewUser({...adminNewUser, display_name: e.target.value.toUpperCase()})} />
                   </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Cloud Access Key</label>
+                  <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Cloud Key (Password)</label>
                     <input type="text" placeholder="Key Value..." className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-mono text-cyan-400" value={adminNewUser.key_value} onChange={(e) => setAdminNewUser({...adminNewUser, key_value: e.target.value})} />
                   </div>
-                  <div className="flex flex-col space-y-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Avatar Cloud Upload</label>
-                    <label className="flex items-center justify-center w-full bg-slate-900 border-2 border-slate-800 rounded-3xl py-5 cursor-pointer hover:border-amber-500 transition-all text-[10px] text-slate-400 font-bold tracking-widest h-full relative group overflow-hidden">
-                      <input type="file" className="hidden" accept="image/*" onChange={(e) => handleAvatarFileChange(e.target.files ? e.target.files[0] : null, (b64) => setAdminNewUser({...adminNewUser, avatar_url: b64}))} />
-                      {adminNewUser.avatar_url && !adminNewUser.avatar_url.startsWith('http') ? (
-                          <div className="flex items-center space-x-3">
-                              <img src={adminNewUser.avatar_url} className="w-8 h-8 rounded-full border border-slate-700" alt="prev" />
-                              <span className="text-emerald-400">READY</span>
-                          </div>
-                      ) : <span>MAX 50KB • 60x60</span>}
-                    </label>
+                  <div className="flex flex-col space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Initial Identity</label>
+                    <div className="flex items-center space-x-3 bg-slate-900 border-2 border-slate-800 rounded-3xl p-2">
+                        <img src={adminNewUser.avatar_url} className="w-10 h-10 rounded-full bg-slate-950 border border-slate-700" alt="avatar" />
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">Synced Preset</span>
+                    </div>
                   </div>
-                  <div className="md:col-span-4">
-                    <button type="submit" disabled={isSyncing} className="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 rounded-3xl font-orbitron font-extrabold py-6 transition-all uppercase tracking-[0.3em] text-xs disabled:opacity-50 shadow-2xl">AUTHORIZE CLOUD PROFILE</button>
-                  </div>
+                  <div className="md:col-span-4"><button type="submit" disabled={isSyncing} className="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 rounded-3xl font-orbitron font-extrabold py-6 transition-all uppercase tracking-[0.3em] text-xs disabled:opacity-50 shadow-2xl">AUTHORIZE CLOUD PROFILE</button></div>
               </form>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {userRegistry.map(user => (
                   <div key={user.id} className="bg-slate-950/80 p-6 rounded-[2rem] border border-slate-800/60 flex items-center space-x-5 group relative shadow-inner">
                     <img src={user.avatar_url} className="w-12 h-12 rounded-full border-2 border-slate-800 shadow-xl bg-slate-900" alt="avatar" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold truncate text-slate-100 uppercase tracking-widest">{user.display_name}</div>
-                      <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mt-1">{user.role} • {user.key_value}</div>
-                    </div>
+                    <div className="flex-1 min-w-0"><div className="text-sm font-bold truncate text-slate-100 uppercase tracking-widest">{user.display_name}</div><div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mt-1">{user.role} • {user.key_value}</div></div>
                     <button onClick={() => handleAdminDeleteUser(user.id)} className="text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-3 hover:bg-rose-500/10 rounded-2xl font-bold">REVOKE</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-slate-900/40 border border-slate-800/50 p-12 rounded-[3.5rem] shadow-2xl backdrop-blur-3xl">
-              <h2 className="text-3xl font-orbitron font-bold mb-10 text-amber-400 uppercase tracking-tighter text-center">Cloud Registry Asset Control</h2>
-              <form onSubmit={handleAdminItemAdd} className="grid grid-cols-1 md:grid-cols-3 gap-10 bg-slate-950/50 p-10 rounded-[2.5rem] mb-16 border border-slate-800/50">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Registry Name</label>
-                    <input type="text" placeholder="e.g. Chronos Core" className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-bold" value={adminNewItem.name} onChange={(e) => setAdminNewItem({...adminNewItem, name: e.target.value})} />
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Cloud Icon Asset</label>
-                    <label className="flex items-center justify-center w-full bg-slate-900 border-2 border-slate-800 rounded-3xl py-5 cursor-pointer hover:border-amber-500 transition-all text-[10px] text-slate-400 font-bold tracking-widest h-full relative group overflow-hidden">
-                      <input type="file" className="hidden" accept="image/*" onChange={(e) => handleAvatarFileChange(e.target.files ? e.target.files[0] : null, (b64) => setAdminNewItem({...adminNewItem, iconBase64: b64}))} />
-                      {adminNewItem.iconBase64 ? <span className="text-emerald-400">READY (SYNC TO SEND)</span> : <span>SELECT LOCAL FILE</span>}
-                    </label>
-                  </div>
-                  <div className="flex items-end">
-                    <button type="submit" disabled={isSyncing} className="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 rounded-3xl font-orbitron font-extrabold py-5 transition-all uppercase tracking-[0.2em] text-[10px] disabled:opacity-50 shadow-2xl">STAMP TO CLOUD</button>
-                  </div>
-              </form>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8">
-                {itemDatabase.map(item => (
-                  <div key={item.id} className="bg-slate-950/80 p-6 rounded-[2rem] border border-slate-800/60 flex flex-col items-center group relative shadow-inner space-y-4">
-                    <img src={item.icon_url} className="w-16 h-16 object-contain rounded-2xl border-2 border-slate-800 bg-slate-900" alt="icon" />
-                    <span className="text-[10px] font-bold truncate w-full text-center uppercase tracking-widest text-slate-400">{item.name}</span>
-                    <button onClick={() => supabase.from('market_templates').delete().eq('id', item.id).then(() => { notify("Registry deleted.", "info"); fetchGlobalData(); })} className="text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 p-2 hover:bg-rose-500/10 rounded-full font-bold">×</button>
                   </div>
                 ))}
               </div>
@@ -555,39 +450,54 @@ const App: React.FC = () => {
       <footer className="mt-40 pt-16 pb-32 flex flex-col items-center max-w-6xl mx-auto opacity-40">
         <div className="flex flex-wrap justify-center gap-8 mb-16">
           {userRole === 'guest' ? (
-            <>
-              <button onClick={() => {setLoginType('admin'); setShowLoginModal(true);}} className="px-14 py-6 bg-gradient-to-br from-orange-400 to-yellow-500 rounded-3xl text-slate-950 font-orbitron font-extrabold tracking-[0.3em] text-[10px] hover:scale-110 transition-transform shadow-[0_20px_50px_rgba(249,115,22,0.3)]">ROOT ACCESS</button>
-              <button onClick={() => {setLoginType('pro'); setShowLoginModal(true);}} className="px-14 py-6 bg-slate-900 border-2 border-purple-500/50 text-purple-400 rounded-3xl font-orbitron font-bold text-[10px] tracking-[0.3em] hover:border-purple-500 transition-all shadow-xl">PRO DEPLOYMENT</button>
-            </>
+            <><button onClick={() => {setLoginType('admin'); setShowLoginModal(true);}} className="px-14 py-6 bg-gradient-to-br from-orange-400 to-yellow-500 rounded-3xl text-slate-950 font-orbitron font-extrabold tracking-[0.3em] text-[10px] hover:scale-110 transition-transform shadow-xl">ROOT ACCESS</button>
+              <button onClick={() => {setLoginType('pro'); setShowLoginModal(true);}} className="px-14 py-6 bg-slate-900 border-2 border-purple-500/50 text-purple-400 rounded-3xl font-orbitron font-bold text-[10px] tracking-[0.3em] hover:border-purple-500 transition-all shadow-xl">PRO DEPLOYMENT</button></>
           ) : (
-            <button onClick={() => {setUserRole('guest'); setCurrentUser(null); setActiveTab('calculator'); notify("Session purged. Returning to local.");}} className="px-14 py-6 bg-slate-900 border-2 border-rose-500/30 text-rose-500 rounded-3xl font-orbitron font-bold text-[10px] tracking-[0.3em] hover:bg-rose-950 transition-all shadow-2xl">TERMINATE CONNECTION</button>
+            <button onClick={() => {setUserRole('guest'); setCurrentUser(null); setActiveTab('calculator'); notify("Session purged.");}} className="px-14 py-6 bg-slate-900 border-2 border-rose-500/30 text-rose-500 rounded-3xl font-orbitron font-bold text-[10px] tracking-[0.3em] hover:bg-rose-950 transition-all shadow-2xl">TERMINATE CONNECTION</button>
           )}
         </div>
-        <p className="text-[11px] font-orbitron uppercase tracking-[0.8em] text-slate-500">TERRAX CLOUD INFRASTRUCTURE ACTIVE</p>
       </footer>
 
+      {/* Login Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-[100px] flex items-center justify-center z-[150] p-6 animate-in fade-in duration-500">
-          <div className="bg-[#0f172a] border border-slate-800 p-16 rounded-[4rem] w-full max-w-lg shadow-[0_0_100px_-20px_rgba(34,211,238,0.2)] relative">
-            <h2 className={`text-4xl font-orbitron font-bold mb-14 text-center tracking-tighter ${loginType === 'admin' ? 'text-amber-400' : 'text-purple-400'}`}>
-              {loginType === 'admin' ? 'CLOUD ROOT' : 'PRO SYNC'}
-            </h2>
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-[100px] flex items-center justify-center z-[150] p-6 animate-in fade-in duration-500">
+          <div className="bg-[#0f172a] border border-slate-800 p-16 rounded-[4rem] w-full max-w-lg shadow-2xl relative">
+            <h2 className={`text-4xl font-orbitron font-bold mb-14 text-center tracking-tighter ${loginType === 'admin' ? 'text-amber-400' : 'text-purple-400'}`}>{loginType === 'admin' ? 'ROOT AUTH' : 'PRO SYNC'}</h2>
             <form onSubmit={handleLogin} className="space-y-10">
-              <div className="space-y-4">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] ml-3">Trader Handle</label>
-                <input type="text" autoFocus placeholder="Alias-117" className="w-full bg-slate-950 border-2 border-slate-800 rounded-3xl px-8 py-6 text-center font-bold text-white focus:border-cyan-500 outline-none transition-all tracking-widest uppercase" value={loginInput.handle} onChange={(e) => setLoginInput({...loginInput, handle: e.target.value})} />
+              <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] ml-3">Trader Handle (ID)</label>
+                <input type="text" autoFocus placeholder="e.g. ATLAS-117" className="w-full bg-slate-950 border-2 border-slate-800 rounded-3xl px-8 py-6 text-center font-bold text-white focus:border-cyan-500 outline-none transition-all tracking-widest uppercase" value={loginInput.handle} onChange={(e) => setLoginInput({...loginInput, handle: e.target.value.toUpperCase()})} />
               </div>
-              <div className="space-y-4">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] ml-3">Secret Cloud Key</label>
+              <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] ml-3">Cloud Key (Password)</label>
                 <input type="password" placeholder="••••••••" className="w-full bg-slate-950 border-2 border-slate-800 rounded-3xl px-8 py-6 text-center font-mono text-2xl focus:border-cyan-500 outline-none transition-all text-cyan-400 tracking-[0.4em]" value={loginInput.key} onChange={(e) => setLoginInput({...loginInput, key: e.target.value})} />
               </div>
               <div className="flex space-x-6 pt-6">
                 <button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 bg-slate-800 py-6 rounded-3xl font-bold uppercase tracking-[0.3em] text-[10px] hover:bg-slate-700 transition-colors text-slate-400">ABORT</button>
-                <button type="submit" disabled={isVerifying} className={`flex-1 ${loginType === 'admin' ? 'bg-amber-600' : 'bg-purple-600'} py-6 rounded-3xl font-bold uppercase tracking-[0.3em] text-[10px] text-white disabled:opacity-50 shadow-2xl`}>
-                  {isVerifying ? 'LINKING...' : 'SYNC IDENTITY'}
-                </button>
+                <button type="submit" disabled={isVerifying} className={`flex-1 ${loginType === 'admin' ? 'bg-amber-600' : 'bg-purple-600'} py-6 rounded-3xl font-bold uppercase tracking-[0.3em] text-[10px] text-white disabled:opacity-50 shadow-2xl`}>{isVerifying ? 'LINKING...' : 'SYNC IDENTITY'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Sync Modal (Avatar Selector) */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-[60px] flex items-center justify-center z-[160] p-6 animate-in fade-in duration-300">
+          <div className="bg-[#0f172a] border border-slate-800 p-12 rounded-[3.5rem] w-full max-w-2xl shadow-2xl relative overflow-hidden">
+            <h2 className="text-3xl font-orbitron font-bold mb-10 text-center tracking-tighter text-cyan-400">PROFILE SYNC GALLERY</h2>
+            <div className="grid grid-cols-4 gap-6 mb-12">
+              {PRESET_AVATARS.map((url, i) => (
+                <button key={i} onClick={() => handleUpdateProfileAvatar(url)} className={`relative p-2 rounded-2xl border-2 transition-all hover:scale-105 ${currentUser?.avatar_url === url ? 'border-cyan-500 bg-cyan-500/10' : 'border-slate-800 hover:border-slate-600'}`}>
+                  <img src={url} className="w-full aspect-square rounded-xl" alt="preset" />
+                  {currentUser?.avatar_url === url && <div className="absolute top-1 right-1 bg-cyan-500 rounded-full p-1"><svg className="w-2 h-2 text-slate-950" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg></div>}
+                </button>
+              ))}
+              {/* Custom Upload Option */}
+              <label className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-700 p-2 cursor-pointer hover:border-cyan-500/50 transition-all aspect-square group">
+                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleAvatarFileChange(e.target.files ? e.target.files[0] : null, handleUpdateProfileAvatar)} />
+                <span className="text-[10px] font-bold text-slate-500 group-hover:text-cyan-400 text-center uppercase tracking-widest">Upload Custom<br/><span className="text-[8px] opacity-50">(MAX 50KB)</span></span>
+              </label>
+            </div>
+            <button onClick={() => setShowProfileModal(false)} className="w-full bg-slate-800 py-5 rounded-3xl font-bold uppercase tracking-[0.3em] text-[10px] hover:bg-slate-700 transition-colors">CLOSE DEEP-SYNC</button>
           </div>
         </div>
       )}
@@ -597,25 +507,16 @@ const App: React.FC = () => {
 
 const TabButton = ({ active, onClick, label, color }: { active: boolean, onClick: () => void, label: string, color: 'cyan' | 'purple' | 'amber' }) => {
   const themes = {
-    cyan: active ? 'bg-cyan-600 border-cyan-400 shadow-[0_0_40px_rgba(34,211,238,0.3)] text-white scale-110' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-200 hover:border-slate-700',
-    purple: active ? 'bg-purple-600 border-purple-400 shadow-[0_0_40px_rgba(168,85,247,0.3)] text-white scale-110' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-200 hover:border-slate-700',
-    amber: active ? 'bg-amber-600 border-amber-400 shadow-[0_0_40px_rgba(251,191,36,0.3)] text-white scale-110' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-200 hover:border-slate-700',
+    cyan: active ? 'bg-cyan-600 border-cyan-400 shadow-[0_0_40px_rgba(34,211,238,0.3)] text-white scale-110' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-200',
+    purple: active ? 'bg-purple-600 border-purple-400 shadow-[0_0_40px_rgba(168,85,247,0.3)] text-white scale-110' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-200',
+    amber: active ? 'bg-amber-600 border-amber-400 shadow-[0_0_40px_rgba(251,191,36,0.3)] text-white scale-110' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-200',
   };
-  return (
-    <button onClick={onClick} className={`px-14 py-5 rounded-[1.5rem] font-bold transition-all border-2 font-orbitron text-[10px] tracking-[0.4em] uppercase ${themes[color]}`}>{label}</button>
-  );
+  return <button onClick={onClick} className={`px-14 py-5 rounded-[1.5rem] font-bold transition-all border-2 font-orbitron text-[10px] tracking-[0.4em] uppercase ${themes[color]}`}>{label}</button>;
 };
 
-interface StockInputProps {
-  label: string;
-  value: number;
-  onChange: (val: string) => void;
-  icon: string;
-}
-
+interface StockInputProps { label: string; value: number; onChange: (val: string) => void; icon: string; }
 const StockInput: React.FC<StockInputProps> = ({ label, value, onChange, icon }) => (
-  <div className="space-y-3">
-    <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center tracking-widest ml-1"><span className="mr-2 text-base drop-shadow-md">{icon}</span> {label}</label>
+  <div className="space-y-3"><label className="text-[9px] font-bold text-slate-500 uppercase flex items-center tracking-widest ml-1"><span className="mr-2 text-base drop-shadow-md">{icon}</span> {label}</label>
     <input type="number" min="0" className="w-full bg-slate-950/80 border-2 border-slate-800/50 rounded-2xl px-5 py-4 text-slate-200 focus:border-cyan-500 font-mono text-xs outline-none transition-all shadow-inner hover:border-slate-700" value={value === 0 ? '' : value} placeholder="0" onChange={(e) => onChange(e.target.value)} />
   </div>
 );
