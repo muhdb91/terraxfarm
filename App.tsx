@@ -1,3 +1,11 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js';
+import { RECIPES } from './constants';
+import { TabType, Stock, SaleItem, AssetImages, IngotRecipe, UserRole, MarketItemTemplate, AuthorizedKey, Notification } from './types';
+
+// --- SUPABASE CONFIGURATION ---
+const SUPABASE_URL = 'https://kgstbnbsqvxrigsgpslf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtnc3RibmJzcXZ4cmlnc2dwc2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjcwNTEsImV4cCI6MjA4NTYwMzA1MX0.69-65de7EKEDqFKFqcn585vtre10OcotZFeRYV14pTY';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
