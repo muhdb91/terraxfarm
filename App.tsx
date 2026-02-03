@@ -6,7 +6,6 @@ import { TabType, Stock, SaleItem, AssetImages, IngotRecipe, UserRole, MarketIte
 // --- SUPABASE CONFIGURATION ---
 const SUPABASE_URL = 'https://kgstbnbsqvxrigsgpslf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtnc3RibmJzcXZ4cmlnc2dwc2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjcwNTEsImV4cCI6MjA4NTYwMzA1MX0.69-65de7EKEDqFKFqcn585vtre10OcotZFeRYV14pTY';
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- PRESET AVATAR GALLERY ---
@@ -141,15 +140,18 @@ const App: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginInput.handle || !loginInput.key) return;
+    const handle = loginInput.handle;
+    const key = loginInput.key;
+    if (!handle || !key) return;
     setIsVerifying(true);
+
     try {
       const { data, error } = await supabase
         .from('authorized_keys')
         .select('*')
         .eq('role', loginType)
-        .eq('display_name', loginInput.handle)
-        .eq('key_value', loginInput.key)
+        .eq('display_name', handle)
+        .eq('key_value', key)
         .single();
 
       if (error || !data) {
@@ -202,7 +204,7 @@ const App: React.FC = () => {
     setIsSyncing(true);
     const { error } = await supabase.from('authorized_keys').insert([{
       role: adminNewUser.role,
-      display_name: adminNewUser.display_name.toUpperCase(), // Force normalization
+      display_name: adminNewUser.display_name, 
       key_value: adminNewUser.key_value,
       avatar_url: adminNewUser.avatar_url
     }]);
@@ -420,7 +422,7 @@ const App: React.FC = () => {
                     <select className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-bold text-white appearance-none" value={adminNewUser.role} onChange={(e) => setAdminNewUser({...adminNewUser, role: e.target.value})}><option value="pro">Pro Traveler</option><option value="admin">Root Admin</option></select>
                   </div>
                   <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">ID (Trader Handle)</label>
-                    <input type="text" placeholder="e.g. ATLAS-01" className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-bold uppercase" value={adminNewUser.display_name} onChange={(e) => setAdminNewUser({...adminNewUser, display_name: e.target.value.toUpperCase()})} />
+                    <input type="text" placeholder="e.g. Atlas-01" className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-bold" value={adminNewUser.display_name} onChange={(e) => setAdminNewUser({...adminNewUser, display_name: e.target.value})} />
                   </div>
                   <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-2">Cloud Key (Password)</label>
                     <input type="text" placeholder="Key Value..." className="w-full bg-slate-900 border-2 border-slate-800 rounded-3xl px-6 py-5 focus:border-amber-500 outline-none text-sm font-mono text-cyan-400" value={adminNewUser.key_value} onChange={(e) => setAdminNewUser({...adminNewUser, key_value: e.target.value})} />
@@ -462,17 +464,21 @@ const App: React.FC = () => {
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-[100px] flex items-center justify-center z-[150] p-6 animate-in fade-in duration-500">
           <div className="bg-[#0f172a] border border-slate-800 p-16 rounded-[4rem] w-full max-w-lg shadow-2xl relative">
-            <h2 className={`text-4xl font-orbitron font-bold mb-14 text-center tracking-tighter ${loginType === 'admin' ? 'text-amber-400' : 'text-purple-400'}`}>{loginType === 'admin' ? 'ROOT AUTH' : 'PRO SYNC'}</h2>
+            <h2 className={`text-4xl font-orbitron font-bold mb-10 text-center tracking-tighter ${loginType === 'admin' ? 'text-amber-400' : 'text-purple-400'}`}>{loginType === 'admin' ? 'ROOT AUTH' : 'PRO SYNC'}</h2>
+            
             <form onSubmit={handleLogin} className="space-y-10">
               <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] ml-3">Trader Handle (ID)</label>
-                <input type="text" autoFocus placeholder="e.g. ATLAS-117" className="w-full bg-slate-950 border-2 border-slate-800 rounded-3xl px-8 py-6 text-center font-bold text-white focus:border-cyan-500 outline-none transition-all tracking-widest uppercase" value={loginInput.handle} onChange={(e) => setLoginInput({...loginInput, handle: e.target.value.toUpperCase()})} />
+                <input type="text" autoFocus placeholder="Case Sensitive ID" className="w-full bg-slate-950 border-2 border-slate-800 rounded-3xl px-8 py-6 text-center font-bold text-white focus:border-cyan-500 outline-none transition-all tracking-widest" value={loginInput.handle} onChange={(e) => setLoginInput({...loginInput, handle: e.target.value})} />
               </div>
               <div className="space-y-4"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] ml-3">Cloud Key (Password)</label>
                 <input type="password" placeholder="••••••••" className="w-full bg-slate-950 border-2 border-slate-800 rounded-3xl px-8 py-6 text-center font-mono text-2xl focus:border-cyan-500 outline-none transition-all text-cyan-400 tracking-[0.4em]" value={loginInput.key} onChange={(e) => setLoginInput({...loginInput, key: e.target.value})} />
               </div>
-              <div className="flex space-x-6 pt-6">
-                <button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 bg-slate-800 py-6 rounded-3xl font-bold uppercase tracking-[0.3em] text-[10px] hover:bg-slate-700 transition-colors text-slate-400">ABORT</button>
-                <button type="submit" disabled={isVerifying} className={`flex-1 ${loginType === 'admin' ? 'bg-amber-600' : 'bg-purple-600'} py-6 rounded-3xl font-bold uppercase tracking-[0.3em] text-[10px] text-white disabled:opacity-50 shadow-2xl`}>{isVerifying ? 'LINKING...' : 'SYNC IDENTITY'}</button>
+              
+              <div className="space-y-4 pt-6">
+                <div className="flex space-x-6">
+                  <button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 bg-slate-800 py-6 rounded-3xl font-bold uppercase tracking-[0.3em] text-[10px] hover:bg-slate-700 transition-colors text-slate-400">ABORT</button>
+                  <button type="submit" disabled={isVerifying} className={`flex-1 ${loginType === 'admin' ? 'bg-amber-600' : 'bg-purple-600'} py-6 rounded-3xl font-bold uppercase tracking-[0.3em] text-[10px] text-white disabled:opacity-50 shadow-2xl`}>{isVerifying ? 'LINKING...' : 'SYNC IDENTITY'}</button>
+                </div>
               </div>
             </form>
           </div>
