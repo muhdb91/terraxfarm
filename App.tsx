@@ -203,6 +203,23 @@ const App: React.FC = () => {
     setIsSyncing(false);
   };
 
+  const handleLocalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 1024 * 1024) { // 1MB limit for base64 in DB
+        notify("Artifact too heavy (Max 1MB).", "error");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAdminNewTemplate({ ...adminNewTemplate, icon_url: reader.result as string });
+      notify("Artifact image inscribed.", "success");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAdminCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminNewTemplate.name || !adminNewTemplate.icon_url) {
@@ -453,8 +470,14 @@ const App: React.FC = () => {
                       <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Item Name</label>
                         <input type="text" placeholder="Excalibur..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8]" value={adminNewTemplate.name} onChange={(e) => setAdminNewTemplate({...adminNewTemplate, name: e.target.value})} />
                       </div>
-                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Icon URL</label>
-                        <input type="text" placeholder="https://..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-retro text-emerald-500" value={adminNewTemplate.icon_url} onChange={(e) => setAdminNewTemplate({...adminNewTemplate, icon_url: e.target.value})} />
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Icon Source</label>
+                        <div className="flex space-x-2">
+                          <input type="text" placeholder="https://..." className="flex-1 bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-retro text-emerald-500" value={adminNewTemplate.icon_url} onChange={(e) => setAdminNewTemplate({...adminNewTemplate, icon_url: e.target.value})} />
+                          <label className="cursor-pointer bg-[#3e2723] border-2 border-[#8d6e63] px-4 py-2.5 text-[10px] font-bold text-amber-500 hover:bg-[#5d4037] transition-all flex items-center justify-center font-retro shadow-lg">
+                            UPLOAD
+                            <input type="file" className="hidden" accept="image/*" onChange={handleLocalImageUpload} />
+                          </label>
+                        </div>
                       </div>
                     </div>
                     <button type="submit" disabled={isSyncing} className="w-full bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-500 border-2 border-emerald-500 font-medieval font-extrabold py-3 transition-all uppercase tracking-[0.2em] text-[10px] disabled:opacity-50 shadow-xl">REGISTER ITEM</button>
