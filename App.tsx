@@ -1,13 +1,31 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js';
 import { RECIPES } from './constants';
-import { TabType, Stock, SaleItem, AssetImages, IngotRecipe, UserRole, MarketItemTemplate, AuthorizedKey, Notification } from './types';
+import { TabType, Stock, SaleItem, AssetImages, IngotRecipe, UserRole, MarketItemTemplate, AuthorizedKey, Notification, Rarity } from './types';
 
 // --- SUPABASE CONFIGURATION ---
-const SUPABASE_URL = 'https://kgstbnbsqvxrigsgpslf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtnc3RibmJzcXZ4cmlnc2dwc2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjcwNTEsImV4cCI6MjA4NTYwMzA1MX0.69-65de7EKEDqFKFqcn585vtre10OcotZFeRYV14pTY';
+const SUPABASE_URL = 'https://your-project-url.supabase.co';
+const SUPABASE_ANON_KEY = 'your-anon-key';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const RARITY_COLORS: Record<Rarity, string> = {
+  common: '#5d4037',
+  uncommon: '#4ade80',
+  rare: '#60a5fa',
+  epic: '#c084fc',
+  legendary: '#fb923c',
+};
+
+const getRarityBorder = (rarity?: Rarity) => {
+  if (!rarity || rarity === 'common') return 'border-[#5d4037]';
+  return `border-[${RARITY_COLORS[rarity]}]`;
+};
+
+const getRarityShadow = (rarity?: Rarity) => {
+  if (!rarity || rarity === 'common') return '';
+  return `shadow-[0_0_15px_${RARITY_COLORS[rarity]}44]`;
+};
 
 const PRESET_AVATARS = [
   'https://api.dicebear.com/7.x/bottts/svg?seed=TerraX-1',
@@ -57,7 +75,10 @@ const App: React.FC = () => {
   const [itemDatabase, setItemDatabase] = useState<MarketItemTemplate[]>([]);
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [cloudSkins, setCloudSkins] = useState<AssetImages>({});
+  const [cloudRarities, setCloudRarities] = useState<Record<string, Rarity>>({});
+  const [oreSkins, setOreSkins] = useState<AssetImages>({});
   const [userRegistry, setUserRegistry] = useState<AuthorizedKey[]>([]);
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
 
   const [stock, setStock] = useState<Stock>(() => {
     const saved = localStorage.getItem('terrax_stock');
@@ -69,7 +90,8 @@ const App: React.FC = () => {
 
   const [newListing, setNewListing] = useState({ templateId: '', price: '', description: '', searchQuery: '' });
   const [adminNewUser, setAdminNewUser] = useState({ role: 'pro', key_value: '' });
-  const [adminNewTemplate, setAdminNewTemplate] = useState({ name: '', icon_url: '' });
+  const [adminNewTemplate, setAdminNewTemplate] = useState({ name: '', icon_url: '', rarity: 'common' as Rarity });
+  const [adminNewAsset, setAdminNewAsset] = useState({ type: 'ingot' as 'ingot' | 'ore', targetId: '', icon_url: '', rarity: 'common' as Rarity });
 
   // Fix: Defined filteredDatabase to handle item registry searching in the Marketplace tab.
   const filteredDatabase = useMemo(() => {
@@ -90,12 +112,23 @@ const App: React.FC = () => {
       const { data: templates } = await supabase.from('market_templates').select('*').order('name');
       const { data: ads } = await supabase.from('sale_listings').select('*').order('created_at', { ascending: false });
       const { data: skins } = await supabase.from('forge_skins').select('*');
+      const { data: ores } = await supabase.from('ore_skins').select('*');
       if (templates) setItemDatabase(templates);
       if (ads) setSaleItems(ads);
       if (skins) {
           const skinMap: AssetImages = {};
-          skins.forEach(s => skinMap[s.recipe_id] = s.image_url);
+          const rarityMap: Record<string, Rarity> = {};
+          skins.forEach(s => {
+            skinMap[s.recipe_id] = s.image_url;
+            if (s.rarity) rarityMap[s.recipe_id] = s.rarity;
+          });
           setCloudSkins(skinMap);
+          setCloudRarities(rarityMap);
+      }
+      if (ores) {
+          const oreMap: AssetImages = {};
+          ores.forEach(o => oreMap[o.ore_name] = o.image_url);
+          setOreSkins(oreMap);
       }
       if (userRole === 'admin') {
         const { data: users } = await supabase.from('authorized_keys').select('*').order('role');
@@ -106,6 +139,27 @@ const App: React.FC = () => {
 
   useEffect(() => { fetchGlobalData(); }, [userRole]);
   useEffect(() => { localStorage.setItem('terrax_stock', JSON.stringify(stock)); }, [stock]);
+
+  useEffect(() => {
+    const handleVisitors = async () => {
+      try {
+        const { data, error } = await supabase.from('app_stats').select('count').eq('id', 'visitors').single();
+        if (data) {
+          const newCount = data.count + 1;
+          setVisitorCount(newCount);
+          await supabase.from('app_stats').update({ count: newCount }).eq('id', 'visitors');
+        } else {
+          await supabase.from('app_stats').insert([{ id: 'visitors', count: 1 }]);
+          setVisitorCount(1);
+        }
+      } catch (e) {
+        const local = parseInt(localStorage.getItem('terrax_visitors') || '742') + 1;
+        localStorage.setItem('terrax_visitors', local.toString());
+        setVisitorCount(local);
+      }
+    };
+    handleVisitors();
+  }, []);
 
   const getUserDisplayName = (user: AuthorizedKey | null) => {
     if (!user) return 'Guest';
@@ -149,6 +203,7 @@ const App: React.FC = () => {
     const { error } = await supabase.from('sale_listings').insert([{
       template_id: template.id, name: template.name, price: newListing.price, description: newListing.description,
       image_url: template.icon_url, seller: getUserDisplayName(currentUser), is_pro: userRole === 'pro',
+      rarity: template.rarity || 'common'
     }]);
     if (!error) {
       setNewListing({ templateId: '', price: '', description: '', searchQuery: '' });
@@ -203,7 +258,7 @@ const App: React.FC = () => {
     setIsSyncing(false);
   };
 
-  const handleLocalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLocalImageUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
@@ -214,7 +269,7 @@ const App: React.FC = () => {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setAdminNewTemplate({ ...adminNewTemplate, icon_url: reader.result as string });
+      callback(reader.result as string);
       notify("Artifact image inscribed.", "success");
     };
     reader.readAsDataURL(file);
@@ -229,10 +284,53 @@ const App: React.FC = () => {
     setIsSyncing(true);
     const { error } = await supabase.from('market_templates').insert([adminNewTemplate]);
     if (!error) {
-      setAdminNewTemplate({ name: '', icon_url: '' });
+      setAdminNewTemplate({ name: '', icon_url: '', rarity: 'common' });
       notify("Market template added to registry.", "success");
       fetchGlobalData();
     } else notify("Template Sync Failed: " + error.message, "error");
+    setIsSyncing(false);
+  };
+
+  const handleAdminCreateAsset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminNewAsset.targetId || !adminNewAsset.icon_url) {
+      notify("Target ID and Icon URL are required.", "error");
+      return;
+    }
+    setIsSyncing(true);
+    let error;
+    if (adminNewAsset.type === 'ingot') {
+      const { error: e1 } = await supabase.from('forge_skins').upsert([{
+        recipe_id: adminNewAsset.targetId,
+        image_url: adminNewAsset.icon_url,
+        rarity: adminNewAsset.rarity
+      }]);
+      error = e1;
+    } else {
+      const { error: e2 } = await supabase.from('ore_skins').upsert([{
+        ore_name: adminNewAsset.targetId,
+        image_url: adminNewAsset.icon_url
+      }]);
+      error = e2;
+    }
+    
+    if (!error) {
+      setAdminNewAsset({ ...adminNewAsset, icon_url: '' });
+      notify("Asset inscribed to registry.", "success");
+      fetchGlobalData();
+    } else notify("Asset Sync Failed: " + error.message, "error");
+    setIsSyncing(false);
+  };
+
+  const handleAdminDeleteAsset = async (type: 'ingot' | 'ore', id: string) => {
+    setIsSyncing(true);
+    const table = type === 'ingot' ? 'forge_skins' : 'ore_skins';
+    const column = type === 'ingot' ? 'recipe_id' : 'ore_name';
+    const { error } = await supabase.from(table).delete().eq(column, id);
+    if (!error) {
+      notify("Asset purged from registry.", "info");
+      fetchGlobalData();
+    } else notify("Asset Purge Failed: " + error.message, "error");
     setIsSyncing(false);
   };
 
@@ -302,12 +400,12 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 gap-3">
                   <StockInput label="Coal" value={stock.coal} onChange={(v) => handleStockChange('coal', v)} icon={ORE_ICONS['Coal']} />
                   <div className="grid grid-cols-2 gap-3">
-                    <StockInput label="Copper Ore" value={stock.copperOre} onChange={(v) => handleStockChange('copperOre', v)} icon={ORE_ICONS['Copper Ore']} />
-                    <StockInput label="Iron Ore" value={stock.ironOre} onChange={(v) => handleStockChange('ironOre', v)} icon={ORE_ICONS['Iron Ore']} />
-                    <StockInput label="Silver Ore" value={stock.silverOre} onChange={(v) => handleStockChange('silverOre', v)} icon={ORE_ICONS['Silver Ore']} />
-                    <StockInput label="Gold Ore" value={stock.goldOre} onChange={(v) => handleStockChange('goldOre', v)} icon={ORE_ICONS['Gold Ore']} />
-                    <StockInput label="Adamant Ore" value={stock.adamantiumOre} onChange={(v) => handleStockChange('adamantiumOre', v)} icon={ORE_ICONS['Adamantium Ore']} />
-                    <StockInput label="Dragon Ore" value={stock.dragonGlassOre} onChange={(v) => handleStockChange('dragonGlassOre', v)} icon={ORE_ICONS['Dragon Glass Ore']} />
+                    <StockInput label="Copper Ore" value={stock.copperOre} onChange={(v) => handleStockChange('copperOre', v)} icon={oreSkins['Copper Ore'] || ORE_ICONS['Copper Ore']} isImage={!!oreSkins['Copper Ore']} />
+                    <StockInput label="Iron Ore" value={stock.ironOre} onChange={(v) => handleStockChange('ironOre', v)} icon={oreSkins['Iron Ore'] || ORE_ICONS['Iron Ore']} isImage={!!oreSkins['Iron Ore']} />
+                    <StockInput label="Silver Ore" value={stock.silverOre} onChange={(v) => handleStockChange('silverOre', v)} icon={oreSkins['Silver Ore'] || ORE_ICONS['Silver Ore']} isImage={!!oreSkins['Silver Ore']} />
+                    <StockInput label="Gold Ore" value={stock.goldOre} onChange={(v) => handleStockChange('goldOre', v)} icon={oreSkins['Gold Ore'] || ORE_ICONS['Gold Ore']} isImage={!!oreSkins['Gold Ore']} />
+                    <StockInput label="Adamant Ore" value={stock.adamantiumOre} onChange={(v) => handleStockChange('adamantiumOre', v)} icon={oreSkins['Adamantium Ore'] || ORE_ICONS['Adamantium Ore']} isImage={!!oreSkins['Adamantium Ore']} />
+                    <StockInput label="Dragon Ore" value={stock.dragonGlassOre} onChange={(v) => handleStockChange('dragonGlassOre', v)} icon={oreSkins['Dragon Glass Ore'] || ORE_ICONS['Dragon Glass Ore']} isImage={!!oreSkins['Dragon Glass Ore']} />
                   </div>
                 </div>
                 <div className="h-1 bg-[#5d4037] my-4" />
@@ -325,18 +423,28 @@ const App: React.FC = () => {
             <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {RECIPES.map((recipe) => {
                 const max = calculateMaxIngots(recipe.id, stock);
+                const rarity = cloudRarities[recipe.id];
                 return (
-                  <div key={recipe.id} className="group bg-[#3e2723]/80 border-4 border-[#5d4037] overflow-hidden hover:border-[#d4af37] transition-all duration-300 shadow-xl relative">
+                  <div key={recipe.id} className={`group bg-[#3e2723]/80 border-4 ${getRarityBorder(rarity)} overflow-hidden hover:border-[#d4af37] transition-all duration-300 shadow-xl relative ${getRarityShadow(rarity)}`}>
                     <div className="absolute top-1 right-1 text-sm opacity-20 group-hover:opacity-40 transition-opacity">⚒️</div>
                     <div className="p-4">
                       <div className="flex items-center space-x-4 mb-4">
-                        <div className="w-[60px] h-[60px] bg-[#1a0f0a] border-2 border-[#8d6e63] shadow-xl group-hover:scale-105 transition-transform overflow-hidden relative">
+                        <div className={`w-[60px] h-[60px] bg-[#1a0f0a] border-2 ${getRarityBorder(rarity)} shadow-xl group-hover:scale-105 transition-transform overflow-hidden relative`}>
                           <div className="absolute inset-0 bg-gradient-to-tr from-amber-900/20 to-transparent"></div>
                           <img src={cloudSkins[recipe.id] || recipe.image} alt={recipe.name} className="w-full h-full object-cover relative z-10" />
                         </div>
                         <div>
                           <h3 className={`text-lg font-medieval font-bold ${recipe.color} tracking-tight drop-shadow-sm`}>{recipe.name}</h3>
-                          <div className="text-[10px] text-[#d4c4a8] uppercase font-bold flex items-center tracking-widest mt-1 font-retro">{recipe.requirements.oreType} <span className="ml-1">{ORE_ICONS[recipe.requirements.oreType]}</span></div>
+                          <div className="text-[10px] text-[#d4c4a8] uppercase font-bold flex items-center tracking-widest mt-1 font-retro">
+                            {recipe.requirements.oreType} 
+                            <span className="ml-1">
+                              {oreSkins[recipe.requirements.oreType] ? (
+                                <img src={oreSkins[recipe.requirements.oreType]} className="w-3 h-3 object-contain inline-block" alt="ore" />
+                              ) : (
+                                ORE_ICONS[recipe.requirements.oreType]
+                              )}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 mb-4 text-center uppercase tracking-widest font-bold text-[8px] font-retro">
@@ -405,9 +513,9 @@ const App: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {saleItems.map(item => (
-                <div key={item.id} className="group bg-[#2b1d16] border-4 border-[#5d4037] overflow-hidden hover:border-amber-500/50 transition-all flex flex-col hover:shadow-2xl">
+                <div key={item.id} className={`group bg-[#2b1d16] border-4 ${getRarityBorder(item.rarity)} overflow-hidden hover:border-amber-500/50 transition-all flex flex-col hover:shadow-2xl ${getRarityShadow(item.rarity)}`}>
                   <div className="p-6 flex items-start space-x-4">
-                    <div className="w-[50px] h-[50px] bg-[#1a0f0a] border-2 border-[#5d4037] flex items-center justify-center shadow-xl flex-shrink-0 overflow-hidden"><img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /></div>
+                    <div className={`w-[50px] h-[50px] bg-[#1a0f0a] border-2 ${getRarityBorder(item.rarity)} flex items-center justify-center shadow-xl flex-shrink-0 overflow-hidden`}><img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /></div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
                         <h3 className="text-lg font-medieval font-bold truncate text-[#d4c4a8] tracking-tight">{item.name}</h3>
@@ -472,29 +580,118 @@ const App: React.FC = () => {
                       <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Item Name</label>
                         <input type="text" placeholder="Excalibur..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8]" value={adminNewTemplate.name} onChange={(e) => setAdminNewTemplate({...adminNewTemplate, name: e.target.value})} />
                       </div>
-                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Icon Source</label>
-                        <div className="flex space-x-2">
-                          <input type="text" placeholder="https://..." className="flex-1 bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-retro text-emerald-500" value={adminNewTemplate.icon_url} onChange={(e) => setAdminNewTemplate({...adminNewTemplate, icon_url: e.target.value})} />
-                          <label className="cursor-pointer bg-[#3e2723] border-2 border-[#8d6e63] px-4 py-2.5 text-[10px] font-bold text-amber-500 hover:bg-[#5d4037] transition-all flex items-center justify-center font-retro shadow-lg">
-                            UPLOAD
-                            <input type="file" className="hidden" accept="image/*" onChange={handleLocalImageUpload} />
-                          </label>
-                        </div>
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Rarity</label>
+                        <select className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8] appearance-none" value={adminNewTemplate.rarity} onChange={(e) => setAdminNewTemplate({...adminNewTemplate, rarity: e.target.value as Rarity})}>
+                          <option value="common">Common</option>
+                          <option value="uncommon">Uncommon</option>
+                          <option value="rare">Rare</option>
+                          <option value="epic">Epic</option>
+                          <option value="legendary">Legendary</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Icon Source</label>
+                      <div className="flex space-x-2">
+                        <input type="text" placeholder="https://..." className="flex-1 bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-retro text-emerald-500" value={adminNewTemplate.icon_url} onChange={(e) => setAdminNewTemplate({...adminNewTemplate, icon_url: e.target.value})} />
+                        <label className="cursor-pointer bg-[#3e2723] border-2 border-[#8d6e63] px-4 py-2.5 text-[10px] font-bold text-amber-500 hover:bg-[#5d4037] transition-all flex items-center justify-center font-retro shadow-lg">
+                          UPLOAD
+                          <input type="file" className="hidden" accept="image/*,image/webp" onChange={(e) => handleLocalImageUpload(e, (url) => setAdminNewTemplate({...adminNewTemplate, icon_url: url}))} />
+                        </label>
                       </div>
                     </div>
                     <button type="submit" disabled={isSyncing} className="w-full bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-500 border-2 border-emerald-500 font-medieval font-extrabold py-3 transition-all uppercase tracking-[0.2em] text-[10px] disabled:opacity-50 shadow-xl">REGISTER ITEM</button>
                 </form>
                 <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                   {itemDatabase.map(item => (
-                    <div key={item.id} className="bg-[#1a0f0a] p-3 border border-[#5d4037] flex items-center space-x-3 group relative shadow-inner">
-                      <img src={item.icon_url} className="w-8 h-8 object-contain bg-[#1a0f0a] border border-[#5d4037]" alt="icon" />
+                    <div key={item.id} className={`bg-[#1a0f0a] p-3 border ${getRarityBorder(item.rarity)} flex items-center space-x-3 group relative shadow-inner`}>
+                      <img src={item.icon_url} className={`w-8 h-8 object-contain bg-[#1a0f0a] border ${getRarityBorder(item.rarity)}`} alt="icon" />
                       <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold truncate text-[#d4c4a8] uppercase tracking-widest font-retro">{item.name}</div>
+                          <div className={`text-xs font-bold truncate ${item.rarity ? `text-[${RARITY_COLORS[item.rarity]}]` : 'text-[#d4c4a8]'} uppercase tracking-widest font-retro`}>{item.name}</div>
                           <div className="text-[8px] font-retro text-[#8d6e63] truncate">{item.id}</div>
                       </div>
                       <button onClick={() => handleAdminDeleteTemplate(item.id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded font-bold text-[8px] uppercase font-retro">Purge</button>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Asset Registry (Ores & Ingots) */}
+              <div className="bg-[#2b1d16] border-4 border-[#5d4037] p-6 shadow-2xl lg:col-span-2">
+                <h2 className="text-xl font-medieval font-bold mb-6 text-blue-500 uppercase tracking-tighter">Asset Registry (Ores & Ingots)</h2>
+                <form onSubmit={handleAdminCreateAsset} className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-[#1a0f0a] p-6 mb-6 border-2 border-[#5d4037]">
+                    <div className="space-y-4">
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Asset Type</label>
+                        <select className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8] appearance-none" value={adminNewAsset.type} onChange={(e) => setAdminNewAsset({...adminNewAsset, type: e.target.value as 'ingot' | 'ore'})}>
+                          <option value="ingot">Ingot Skin</option>
+                          <option value="ore">Ore Icon</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Target ID / Name</label>
+                        {adminNewAsset.type === 'ingot' ? (
+                          <select className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8] appearance-none" value={adminNewAsset.targetId} onChange={(e) => setAdminNewAsset({...adminNewAsset, targetId: e.target.value})}>
+                            <option value="">Select Ingot...</option>
+                            {RECIPES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                          </select>
+                        ) : (
+                          <select className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8] appearance-none" value={adminNewAsset.targetId} onChange={(e) => setAdminNewAsset({...adminNewAsset, targetId: e.target.value})}>
+                            <option value="">Select Ore...</option>
+                            {Object.keys(ORE_ICONS).map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Rarity (Ingots Only)</label>
+                        <select disabled={adminNewAsset.type === 'ore'} className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8] appearance-none disabled:opacity-30" value={adminNewAsset.rarity} onChange={(e) => setAdminNewAsset({...adminNewAsset, rarity: e.target.value as Rarity})}>
+                          <option value="common">Common</option>
+                          <option value="uncommon">Uncommon</option>
+                          <option value="rare">Rare</option>
+                          <option value="epic">Epic</option>
+                          <option value="legendary">Legendary</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Icon Source</label>
+                        <div className="flex space-x-2">
+                          <input type="text" placeholder="https://..." className="flex-1 bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-retro text-blue-400" value={adminNewAsset.icon_url} onChange={(e) => setAdminNewAsset({...adminNewAsset, icon_url: e.target.value})} />
+                          <label className="cursor-pointer bg-[#3e2723] border-2 border-[#8d6e63] px-4 py-2.5 text-[10px] font-bold text-amber-500 hover:bg-[#5d4037] transition-all flex items-center justify-center font-retro shadow-lg">
+                            UPLOAD
+                            <input type="file" className="hidden" accept="image/*,image/webp" onChange={(e) => handleLocalImageUpload(e, (url) => setAdminNewAsset({...adminNewAsset, icon_url: url}))} />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-end">
+                      <button type="submit" disabled={isSyncing} className="w-full bg-blue-900/40 hover:bg-blue-800/60 text-blue-400 border-2 border-blue-400 font-medieval font-extrabold py-4 transition-all uppercase tracking-[0.2em] text-[10px] disabled:opacity-50 shadow-xl">UPDATE ASSET</button>
+                    </div>
+                </form>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                  {/* List Ingot Assets */}
+                  <div className="space-y-2">
+                    <h3 className="text-[10px] font-retro text-[#8d6e63] uppercase tracking-widest border-b border-[#5d4037] pb-1">Ingot Skins</h3>
+                    {Object.entries(cloudSkins).map(([id, url]) => (
+                      <div key={id} className={`bg-[#1a0f0a] p-2 border ${getRarityBorder(cloudRarities[id])} flex items-center space-x-3 group shadow-inner`}>
+                        <img src={url} className={`w-8 h-8 object-contain bg-[#1a0f0a] border ${getRarityBorder(cloudRarities[id])}`} alt="icon" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold truncate text-[#d4c4a8] uppercase tracking-widest font-retro">{RECIPES.find(r => r.id === id)?.name || id}</div>
+                          <div className={`text-[8px] font-retro uppercase ${cloudRarities[id] ? `text-[${RARITY_COLORS[cloudRarities[id]]}]` : 'text-[#8d6e63]'}`}>{cloudRarities[id] || 'common'}</div>
+                        </div>
+                        <button onClick={() => handleAdminDeleteAsset('ingot', id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded font-bold text-[8px] uppercase font-retro">Purge</button>
+                      </div>
+                    ))}
+                  </div>
+                  {/* List Ore Assets */}
+                  <div className="space-y-2">
+                    <h3 className="text-[10px] font-retro text-[#8d6e63] uppercase tracking-widest border-b border-[#5d4037] pb-1">Ore Icons</h3>
+                    {Object.entries(oreSkins).map(([name, url]) => (
+                      <div key={name} className="bg-[#1a0f0a] p-2 border border-[#5d4037] flex items-center space-x-3 group shadow-inner">
+                        <img src={url} className="w-8 h-8 object-contain bg-[#1a0f0a] border border-[#5d4037]" alt="icon" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold truncate text-[#d4c4a8] uppercase tracking-widest font-retro">{name}</div>
+                        </div>
+                        <button onClick={() => handleAdminDeleteAsset('ore', name)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded font-bold text-[8px] uppercase font-retro">Purge</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -503,13 +700,18 @@ const App: React.FC = () => {
       </main>
 
       <footer className="mt-4 py-4 flex flex-col items-center max-w-6xl mx-auto opacity-60 flex-shrink-0">
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-4 mb-4">
           {userRole === 'guest' ? (
             <><button onClick={() => {setLoginType('admin'); setShowLoginModal(true);}} className="px-8 py-3 bg-[#3e2723] border-2 border-amber-500 text-amber-500 font-medieval font-extrabold tracking-[0.2em] text-[10px] hover:bg-[#5d4037] transition-all shadow-lg">ROOT ACCESS</button>
               <button onClick={() => {setLoginType('pro'); setShowLoginModal(true);}} className="px-8 py-3 bg-[#3e2723] border-2 border-purple-500 text-purple-400 font-medieval font-bold text-[10px] tracking-[0.2em] hover:bg-[#5d4037] transition-all shadow-lg">PRO DEPLOYMENT</button></>
           ) : (
             <button onClick={() => {setUserRole('guest'); setCurrentUser(null); setActiveTab('calculator'); notify("Session purged.");}} className="px-8 py-3 bg-[#1a0f0a] border-2 border-red-500/30 text-red-500 font-medieval font-bold text-[10px] tracking-[0.2em] hover:bg-red-950 transition-all shadow-lg">TERMINATE CONNECTION</button>
           )}
+        </div>
+        <div className="bg-[#1a0f0a] px-4 py-1 border border-[#5d4037] shadow-inner">
+          <p className="text-[9px] font-retro text-[#8d6e63] uppercase tracking-[0.2em]">
+            Travelers Encountered: <span className="text-amber-500 font-bold">{visitorCount?.toLocaleString() || '...'}</span>
+          </p>
         </div>
       </footer>
 
@@ -558,9 +760,12 @@ const TabButton = ({ active, onClick, label, color }: { active: boolean, onClick
   </button>;
 };
 
-interface StockInputProps { label: string; value: number; onChange: (val: string) => void; icon: string; }
-const StockInput: React.FC<StockInputProps> = ({ label, value, onChange, icon }) => (
-  <div className="space-y-2"><label className="text-[9px] font-bold text-[#8d6e63] uppercase flex items-center tracking-widest ml-1 font-retro"><span className="mr-2 text-base drop-shadow-md">{icon}</span> {label}</label>
+interface StockInputProps { label: string; value: number; onChange: (val: string) => void; icon: string; isImage?: boolean; }
+const StockInput: React.FC<StockInputProps> = ({ label, value, onChange, icon, isImage }) => (
+  <div className="space-y-2"><label className="text-[9px] font-bold text-[#8d6e63] uppercase flex items-center tracking-widest ml-1 font-retro">
+    <span className="mr-2 text-base drop-shadow-md flex items-center justify-center w-6 h-6">
+      {isImage ? <img src={icon} className="w-5 h-5 object-contain" alt="icon" /> : icon}
+    </span> {label}</label>
     <input type="number" min="0" className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-3 py-2 text-[#d4af37] focus:border-amber-500 font-retro text-lg outline-none transition-all shadow-inner" value={value === 0 ? '' : value} placeholder="0" onChange={(e) => onChange(e.target.value)} />
   </div>
 );

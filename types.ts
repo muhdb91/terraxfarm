@@ -36,10 +36,13 @@ export interface Stock {
   dragonGlassIngot: number;
 }
 
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
 export interface MarketItemTemplate {
   id: string;
   name: string;
   icon_url: string;
+  rarity?: Rarity;
 }
 
 export interface SaleItem {
@@ -53,6 +56,7 @@ export interface SaleItem {
   seller_avatar?: string;
   is_pro: boolean;
   created_at?: string;
+  rarity?: Rarity;
 }
 
 export interface AuthorizedKey {
