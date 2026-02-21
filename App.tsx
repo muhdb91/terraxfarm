@@ -478,12 +478,12 @@ const App: React.FC = () => {
                 </div>
                 <div className="h-1 bg-[#5d4037] my-4" />
                 <div className="grid grid-cols-2 gap-3">
-                  <StockInput label="Copper" value={stock.copperIngot} onChange={(v) => handleStockChange('copperIngot', v)} icon={cloudSkins['copperIngot'] || "🧱"} isImage={!!cloudSkins['copperIngot']} />
-                  <StockInput label="Iron" value={stock.ironIngot} onChange={(v) => handleStockChange('ironIngot', v)} icon={cloudSkins['ironIngot'] || "⚔️"} isImage={!!cloudSkins['ironIngot']} />
-                  <StockInput label="Silver" value={stock.silverIngot} onChange={(v) => handleStockChange('silverIngot', v)} icon={cloudSkins['silverIngot'] || "🪙"} isImage={!!cloudSkins['silverIngot']} />
-                  <StockInput label="Gold" value={stock.goldIngot} onChange={(v) => handleStockChange('goldIngot', v)} icon={cloudSkins['goldIngot'] || "👑"} isImage={!!cloudSkins['goldIngot']} />
-                  <StockInput label="Adamant" value={stock.adamantiumIngot} onChange={(v) => handleStockChange('adamantiumIngot', v)} icon={cloudSkins['adamantiumIngot'] || "💎"} isImage={!!cloudSkins['adamantiumIngot']} />
-                  <StockInput label="Dragon" value={stock.dragonGlassIngot} onChange={(v) => handleStockChange('dragonGlassIngot', v)} icon={cloudSkins['dragonGlassIngot'] || "🔮"} isImage={!!cloudSkins['dragonGlassIngot']} />
+                  <StockInput label="Copper Ingot" value={stock.copperIngot} onChange={(v) => handleStockChange('copperIngot', v)} icon={cloudSkins['copperIngot'] || "🧱"} isImage={!!cloudSkins['copperIngot']} />
+                  <StockInput label="Iron Ingot" value={stock.ironIngot} onChange={(v) => handleStockChange('ironIngot', v)} icon={cloudSkins['ironIngot'] || "⚔️"} isImage={!!cloudSkins['ironIngot']} />
+                  <StockInput label="Silver Ingot" value={stock.silverIngot} onChange={(v) => handleStockChange('silverIngot', v)} icon={cloudSkins['silverIngot'] || "🪙"} isImage={!!cloudSkins['silverIngot']} />
+                  <StockInput label="Gold Ingot" value={stock.goldIngot} onChange={(v) => handleStockChange('goldIngot', v)} icon={cloudSkins['goldIngot'] || "👑"} isImage={!!cloudSkins['goldIngot']} />
+                  <StockInput label="Adamant Ingot" value={stock.adamantiumIngot} onChange={(v) => handleStockChange('adamantiumIngot', v)} icon={cloudSkins['adamantiumIngot'] || "💎"} isImage={!!cloudSkins['adamantiumIngot']} />
+                  <StockInput label="Dragon Glass Ingot" value={stock.dragonGlassIngot} onChange={(v) => handleStockChange('dragonGlassIngot', v)} icon={cloudSkins['dragonGlassIngot'] || "🔮"} isImage={!!cloudSkins['dragonGlassIngot']} />
                 </div>
               </div>
             </div>
