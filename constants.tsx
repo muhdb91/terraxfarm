@@ -5,8 +5,8 @@ export const RECIPES: IngotRecipe[] = [
   {
     id: 'copperIngot',
     name: 'Copper Ingot',
-    image: 'https://images.unsplash.com/photo-1590502160462-0994f3162799?w=400&auto=format&fit=crop&q=60',
-    color: 'text-orange-400',
+    image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/copper-ingot.png',
+    color: 'text-[#cd7f32]',
     requirements: {
       coal: 200,
       ore: 150,
@@ -17,8 +17,8 @@ export const RECIPES: IngotRecipe[] = [
   {
     id: 'ironIngot',
     name: 'Iron Ingot',
-    image: 'https://images.unsplash.com/photo-1558500224-8147d3d2fc49?w=400&auto=format&fit=crop&q=60',
-    color: 'text-slate-300',
+    image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/iron-ingot.png',
+    color: 'text-[#a19d94]',
     requirements: {
       coal: 300,
       ore: 300,
@@ -30,8 +30,8 @@ export const RECIPES: IngotRecipe[] = [
   {
     id: 'silverIngot',
     name: 'Silver Ingot',
-    image: 'https://images.unsplash.com/photo-1582266255765-fa5cf1a1d501?w=400&auto=format&fit=crop&q=60',
-    color: 'text-zinc-400',
+    image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silver-ingot.png',
+    color: 'text-[#c0c0c0]',
     requirements: {
       coal: 600,
       ore: 400,
@@ -43,8 +43,8 @@ export const RECIPES: IngotRecipe[] = [
   {
     id: 'goldIngot',
     name: 'Gold Ingot',
-    image: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=400&auto=format&fit=crop&q=60',
-    color: 'text-yellow-400',
+    image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/gold-ingot.png',
+    color: 'text-[#ffd700]',
     requirements: {
       coal: 1200,
       ore: 1000,
@@ -56,8 +56,8 @@ export const RECIPES: IngotRecipe[] = [
   {
     id: 'adamantiumIngot',
     name: 'Adamantium Ingot',
-    image: 'https://images.unsplash.com/photo-1627163439134-7a8c47e08238?w=400&auto=format&fit=crop&q=60',
-    color: 'text-cyan-400',
+    image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/adamant-ingot.png',
+    color: 'text-[#00ffff]',
     requirements: {
       coal: 2400,
       ore: 1500,
@@ -69,8 +69,8 @@ export const RECIPES: IngotRecipe[] = [
   {
     id: 'dragonGlassIngot',
     name: 'Dragon Glass Ingot',
-    image: 'https://images.unsplash.com/photo-1551009175-8a68da93d5f9?w=400&auto=format&fit=crop&q=60',
-    color: 'text-purple-500',
+    image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dragon-ingot.png',
+    color: 'text-[#ff4500]',
     requirements: {
       coal: 4800,
       ore: 2000,

@@ -1,4 +1,3 @@
-
 export type TabType = 'calculator' | 'marketplace' | 'assets';
 export type UserRole = 'guest' | 'admin' | 'pro';
 
@@ -60,8 +59,8 @@ export interface AuthorizedKey {
   id: string;
   role: string;
   key_value: string;
-  display_name: string;
-  avatar_url: string;
+  display_name?: string; // Optional to match minimal schema
+  avatar_url?: string;   // Optional to match minimal schema
 }
 
 export interface Notification {
