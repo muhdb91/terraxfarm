@@ -76,3 +76,18 @@ export interface Notification {
 export interface AssetImages {
   [key: string]: string;
 }
+
+export interface PatchNote {
+  id: string;
+  title: string;
+  content: string;
+  created_at: string;
+}
+
+export interface Advertisement {
+  id: string;
+  image_url: string;
+  link_url?: string;
+  title?: string;
+  created_at: string;
+}
