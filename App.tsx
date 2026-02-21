@@ -79,6 +79,9 @@ const App: React.FC = () => {
   const [oreSkins, setOreSkins] = useState<AssetImages>({});
   const [userRegistry, setUserRegistry] = useState<AuthorizedKey[]>([]);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
+  const [patchNotes, setPatchNotes] = useState<PatchNote[]>([]);
+  const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
+  const [showNewsModal, setShowNewsModal] = useState(false);
 
   const [stock, setStock] = useState<Stock>(() => {
     const saved = localStorage.getItem('terrax_stock');
@@ -92,6 +95,8 @@ const App: React.FC = () => {
   const [adminNewUser, setAdminNewUser] = useState({ role: 'pro', key_value: '' });
   const [adminNewTemplate, setAdminNewTemplate] = useState({ name: '', icon_url: '', rarity: 'common' as Rarity });
   const [adminNewAsset, setAdminNewAsset] = useState({ type: 'ingot' as 'ingot' | 'ore', targetId: '', icon_url: '', rarity: 'common' as Rarity });
+  const [adminNewPatch, setAdminNewPatch] = useState({ title: '', content: '' });
+  const [adminNewAd, setAdminNewAd] = useState({ image_url: '', link_url: '', title: '' });
 
   // Fix: Defined filteredDatabase to handle item registry searching in the Marketplace tab.
   const filteredDatabase = useMemo(() => {
@@ -113,8 +118,14 @@ const App: React.FC = () => {
       const { data: ads } = await supabase.from('sale_listings').select('*').order('created_at', { ascending: false });
       const { data: skins } = await supabase.from('forge_skins').select('*');
       const { data: ores } = await supabase.from('ore_skins').select('*');
+      const { data: patches } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
+      const { data: ads_data } = await supabase.from('advertisements').select('*').order('created_at', { ascending: false });
+      
       if (templates) setItemDatabase(templates);
       if (ads) setSaleItems(ads);
+      if (patches) setPatchNotes(patches);
+      if (ads_data) setAdvertisements(ads_data);
+      
       if (skins) {
           const skinMap: AssetImages = {};
           const rarityMap: Record<string, Rarity> = {};
@@ -159,6 +170,7 @@ const App: React.FC = () => {
       }
     };
     handleVisitors();
+    setShowNewsModal(true);
   }, []);
 
   const getUserDisplayName = (user: AuthorizedKey | null) => {
@@ -340,6 +352,48 @@ const App: React.FC = () => {
       notify("Asset purged from registry.", "info");
       fetchGlobalData();
     } else notify("Asset Purge Failed: " + error.message, "error");
+    setIsSyncing(false);
+  };
+  
+  const handleAdminCreatePatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminNewPatch.title || !adminNewPatch.content) return;
+    setIsSyncing(true);
+    const { error } = await supabase.from('patch_notes').insert([adminNewPatch]);
+    if (!error) {
+      setAdminNewPatch({ title: '', content: '' });
+      notify("Patch notes published.", "success");
+      fetchGlobalData();
+    } else notify("Patch Sync Failed: " + error.message, "error");
+    setIsSyncing(false);
+  };
+
+  const handleAdminDeletePatch = async (id: string) => {
+    setIsSyncing(true);
+    await supabase.from('patch_notes').delete().eq('id', id);
+    notify("Patch notes removed.", "info");
+    fetchGlobalData();
+    setIsSyncing(false);
+  };
+
+  const handleAdminCreateAd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminNewAd.image_url) return;
+    setIsSyncing(true);
+    const { error } = await supabase.from('advertisements').insert([adminNewAd]);
+    if (!error) {
+      setAdminNewAd({ image_url: '', link_url: '', title: '' });
+      notify("Advertisement published.", "success");
+      fetchGlobalData();
+    } else notify("Ad Sync Failed: " + error.message, "error");
+    setIsSyncing(false);
+  };
+
+  const handleAdminDeleteAd = async (id: string) => {
+    setIsSyncing(true);
+    await supabase.from('advertisements').delete().eq('id', id);
+    notify("Advertisement removed.", "info");
+    fetchGlobalData();
     setIsSyncing(false);
   };
 
@@ -711,6 +765,66 @@ const App: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* News & Patch Notes Management */}
+              <div className="bg-[#2b1d16] border-4 border-[#5d4037] p-6 shadow-2xl lg:col-span-1">
+                <h2 className="text-xl font-medieval font-bold mb-6 text-amber-500 uppercase tracking-tighter">Scroll of Updates</h2>
+                <form onSubmit={handleAdminCreatePatch} className="grid grid-cols-1 gap-4 bg-[#1a0f0a] p-4 mb-6 border-2 border-[#5d4037]">
+                    <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Update Title</label>
+                      <input type="text" placeholder="Version 1.2..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8]" value={adminNewPatch.title} onChange={(e) => setAdminNewPatch({...adminNewPatch, title: e.target.value})} />
+                    </div>
+                    <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Update Content</label>
+                      <textarea placeholder="What has changed?..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 h-32 focus:border-amber-500 outline-none text-xs font-medium text-[#d4c4a8] resize-none" value={adminNewPatch.content} onChange={(e) => setAdminNewPatch({...adminNewPatch, content: e.target.value})}></textarea>
+                    </div>
+                    <button type="submit" disabled={isSyncing} className="w-full bg-amber-900/40 hover:bg-amber-800/60 text-amber-500 border-2 border-amber-500 font-medieval font-extrabold py-3 transition-all uppercase tracking-[0.2em] text-[10px] disabled:opacity-50 shadow-xl">PUBLISH UPDATE</button>
+                </form>
+                <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                  {patchNotes.map(patch => (
+                    <div key={patch.id} className="bg-[#1a0f0a] p-3 border border-[#5d4037] flex items-center space-x-3 group relative shadow-inner">
+                      <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold truncate text-[#d4c4a8] uppercase tracking-widest font-retro">{patch.title}</div>
+                          <div className="text-[8px] font-retro text-[#8d6e63] truncate">{new Date(patch.created_at).toLocaleDateString()}</div>
+                      </div>
+                      <button onClick={() => handleAdminDeletePatch(patch.id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded font-bold text-[8px] uppercase font-retro">Purge</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Advertisement Management */}
+              <div className="bg-[#2b1d16] border-4 border-[#5d4037] p-6 shadow-2xl lg:col-span-1">
+                <h2 className="text-xl font-medieval font-bold mb-6 text-purple-500 uppercase tracking-tighter">Trading Post Ads</h2>
+                <form onSubmit={handleAdminCreateAd} className="grid grid-cols-1 gap-4 bg-[#1a0f0a] p-4 mb-6 border-2 border-[#5d4037]">
+                    <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Ad Title</label>
+                      <input type="text" placeholder="Limited Time Offer!..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8]" value={adminNewAd.title} onChange={(e) => setAdminNewAd({...adminNewAd, title: e.target.value})} />
+                    </div>
+                    <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Image Source</label>
+                      <div className="flex space-x-2">
+                        <input type="text" placeholder="https://..." className="flex-1 bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-retro text-purple-400" value={adminNewAd.image_url} onChange={(e) => setAdminNewAd({...adminNewAd, image_url: e.target.value})} />
+                        <label className="cursor-pointer bg-[#3e2723] border-2 border-[#8d6e63] px-4 py-2.5 text-[10px] font-bold text-amber-500 hover:bg-[#5d4037] transition-all flex items-center justify-center font-retro shadow-lg">
+                          UPLOAD
+                          <input type="file" className="hidden" accept="image/*,image/webp" onChange={(e) => handleLocalImageUpload(e, (url) => setAdminNewAd({...adminNewAd, image_url: url}))} />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Target Link (Optional)</label>
+                      <input type="text" placeholder="https://..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-retro text-[#d4c4a8]" value={adminNewAd.link_url} onChange={(e) => setAdminNewAd({...adminNewAd, link_url: e.target.value})} />
+                    </div>
+                    <button type="submit" disabled={isSyncing} className="w-full bg-purple-900/40 hover:bg-purple-800/60 text-purple-400 border-2 border-purple-500 font-medieval font-extrabold py-3 transition-all uppercase tracking-[0.2em] text-[10px] disabled:opacity-50 shadow-xl">POST ADVERT</button>
+                </form>
+                <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                  {advertisements.map(ad => (
+                    <div key={ad.id} className="bg-[#1a0f0a] p-3 border border-[#5d4037] flex items-center space-x-3 group relative shadow-inner">
+                      <img src={ad.image_url} className="w-12 h-8 object-cover bg-[#1a0f0a] border border-[#5d4037]" alt="ad" />
+                      <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold truncate text-[#d4c4a8] uppercase tracking-widest font-retro">{ad.title || 'Untitled Ad'}</div>
+                          <div className="text-[8px] font-retro text-[#8d6e63] truncate">{ad.id}</div>
+                      </div>
+                      <button onClick={() => handleAdminDeleteAd(ad.id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded font-bold text-[8px] uppercase font-retro">Purge</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -731,6 +845,59 @@ const App: React.FC = () => {
           </p>
         </div>
       </footer>
+
+      {showNewsModal && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-[250] p-4 md:p-10 animate-in fade-in duration-500">
+          <div className="bg-[#2b1d16] border-4 border-[#5d4037] w-full max-w-4xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.8)] relative">
+            <button onClick={() => setShowNewsModal(false)} className="absolute -top-4 -right-4 w-10 h-10 bg-[#3e2723] border-4 border-[#5d4037] text-amber-500 flex items-center justify-center font-bold hover:bg-[#5d4037] transition-all z-10">X</button>
+            
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 space-y-10">
+              {/* Ad Carousel */}
+              {advertisements.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-retro font-bold text-[#8d6e63] uppercase tracking-[0.3em] text-center">--- Sponsored Artifacts ---</h3>
+                  <div className="relative group h-[200px] md:h-[300px] bg-[#1a0f0a] border-4 border-[#5d4037] overflow-hidden">
+                    <div className="flex transition-transform duration-500 h-full">
+                      {/* Simple carousel logic - just showing the first for now or we can make it auto-scroll */}
+                      <div className="min-w-full h-full relative">
+                        <img src={advertisements[0].image_url} className="w-full h-full object-cover opacity-80" alt="ad" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                          <h4 className="text-xl font-medieval font-bold text-amber-500">{advertisements[0].title}</h4>
+                          {advertisements[0].link_url && (
+                            <a href={advertisements[0].link_url} target="_blank" rel="noreferrer" className="text-[10px] font-retro text-blue-400 hover:underline uppercase tracking-widest mt-2 block">Visit Trading Post →</a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Patch Notes */}
+              <div className="space-y-6">
+                <h2 className="text-3xl font-medieval font-bold text-amber-500 text-center tracking-tighter border-b-4 border-[#5d4037] pb-4">📜 SCROLL OF UPDATES</h2>
+                <div className="space-y-8">
+                  {patchNotes.length > 0 ? patchNotes.map(patch => (
+                    <div key={patch.id} className="space-y-3 bg-[#1a0f0a]/50 p-6 border-2 border-[#5d4037]/30">
+                      <div className="flex justify-between items-center border-b border-[#5d4037]/30 pb-2">
+                        <h3 className="text-xl font-medieval font-bold text-[#d4c4a8]">{patch.title}</h3>
+                        <span className="text-[9px] font-retro text-[#8d6e63]">{new Date(patch.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <div className="text-sm font-serif-fantasy text-[#8d6e63] leading-relaxed whitespace-pre-wrap">{patch.content}</div>
+                    </div>
+                  )) : (
+                    <p className="text-center text-[#8d6e63] italic font-retro">No recent changes recorded in the ledger.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-[#1a0f0a] border-t-4 border-[#5d4037] flex justify-center">
+              <button onClick={() => setShowNewsModal(false)} className="px-12 py-4 bg-amber-900/40 border-2 border-amber-500 text-amber-500 font-medieval font-extrabold tracking-widest hover:bg-amber-800/60 transition-all shadow-xl uppercase text-sm">Enter the Forge</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[150] p-6 animate-in fade-in duration-500">
