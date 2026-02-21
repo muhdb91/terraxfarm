@@ -4,8 +4,8 @@ import { RECIPES } from './constants';
 import { TabType, Stock, SaleItem, AssetImages, IngotRecipe, UserRole, MarketItemTemplate, AuthorizedKey, Notification, Rarity } from './types';
 
 // --- SUPABASE CONFIGURATION ---
-const SUPABASE_URL = 'https://kgstbnbsqvxrigsgpslf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtnc3RibmJzcXZ4cmlnc2dwc2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwMjcwNTEsImV4cCI6MjA4NTYwMzA1MX0.69-65de7EKEDqFKFqcn585vtre10OcotZFeRYV14pTY';
+const SUPABASE_URL = 'https://your-project-url.supabase.co';
+const SUPABASE_ANON_KEY = 'your-anon-key';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -226,6 +226,15 @@ const App: React.FC = () => {
     setStock(prev => ({ ...prev, [field]: num }));
   };
 
+  const handleClearStock = () => {
+    const cleared = {
+      coal: 0, copperOre: 0, ironOre: 0, silverOre: 0, goldOre: 0, adamantiumOre: 0, dragonGlassOre: 0,
+      copperIngot: 0, ironIngot: 0, silverIngot: 0, goldIngot: 0, adamantiumIngot: 0, dragonGlassIngot: 0,
+    };
+    setStock(cleared);
+    notify("Storehouse cleared.", "info");
+  };
+
   const handleAdminCreateUser = async (e: React.FormEvent) => {
     if (!adminNewUser.key_value) {
       notify("Key Value is required.", "error");
@@ -393,12 +402,17 @@ const App: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-6 duration-700 pb-4">
             <div className="lg:col-span-1 bg-[#2b1d16] p-4 border-4 border-[#5d4037] shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] relative overflow-hidden">
               <div className="absolute -top-6 -right-6 text-4xl opacity-10 pointer-events-none">📜</div>
-              <h2 className="text-lg font-medieval font-bold mb-4 tracking-widest text-[#d4af37] flex items-center">
-                <span className="mr-2 text-[#b8860b] text-xl">📦</span> STOREHOUSE
-              </h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-medieval font-bold tracking-widest text-[#d4af37] flex items-center">
+                  <span className="mr-2 text-[#b8860b] text-xl">📦</span> STOREHOUSE
+                </h2>
+                <button onClick={handleClearStock} className="text-[8px] font-retro font-bold text-red-500/70 hover:text-red-500 uppercase tracking-widest bg-[#1a0f0a] px-2 py-1 border border-[#5d4037] transition-all">
+                  CLEAR
+                </button>
+              </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-3">
-                  <StockInput label="Coal" value={stock.coal} onChange={(v) => handleStockChange('coal', v)} icon={ORE_ICONS['Coal']} />
+                  <StockInput label="Coal" value={stock.coal} onChange={(v) => handleStockChange('coal', v)} icon={oreSkins['Coal'] || ORE_ICONS['Coal']} isImage={!!oreSkins['Coal']} />
                   <div className="grid grid-cols-2 gap-3">
                     <StockInput label="Copper Ore" value={stock.copperOre} onChange={(v) => handleStockChange('copperOre', v)} icon={oreSkins['Copper Ore'] || ORE_ICONS['Copper Ore']} isImage={!!oreSkins['Copper Ore']} />
                     <StockInput label="Iron Ore" value={stock.ironOre} onChange={(v) => handleStockChange('ironOre', v)} icon={oreSkins['Iron Ore'] || ORE_ICONS['Iron Ore']} isImage={!!oreSkins['Iron Ore']} />
@@ -410,12 +424,12 @@ const App: React.FC = () => {
                 </div>
                 <div className="h-1 bg-[#5d4037] my-4" />
                 <div className="grid grid-cols-2 gap-3">
-                  <StockInput label="Copper" value={stock.copperIngot} onChange={(v) => handleStockChange('copperIngot', v)} icon="🧱" />
-                  <StockInput label="Iron" value={stock.ironIngot} onChange={(v) => handleStockChange('ironIngot', v)} icon="⚔️" />
-                  <StockInput label="Silver" value={stock.silverIngot} onChange={(v) => handleStockChange('silverIngot', v)} icon="🪙" />
-                  <StockInput label="Gold" value={stock.goldIngot} onChange={(v) => handleStockChange('goldIngot', v)} icon="👑" />
-                  <StockInput label="Adamant" value={stock.adamantiumIngot} onChange={(v) => handleStockChange('adamantiumIngot', v)} icon="💎" />
-                  <StockInput label="Dragon" value={stock.dragonGlassIngot} onChange={(v) => handleStockChange('dragonGlassIngot', v)} icon="🔮" />
+                  <StockInput label="Copper" value={stock.copperIngot} onChange={(v) => handleStockChange('copperIngot', v)} icon={cloudSkins['copperIngot'] || "🧱"} isImage={!!cloudSkins['copperIngot']} />
+                  <StockInput label="Iron" value={stock.ironIngot} onChange={(v) => handleStockChange('ironIngot', v)} icon={cloudSkins['ironIngot'] || "⚔️"} isImage={!!cloudSkins['ironIngot']} />
+                  <StockInput label="Silver" value={stock.silverIngot} onChange={(v) => handleStockChange('silverIngot', v)} icon={cloudSkins['silverIngot'] || "🪙"} isImage={!!cloudSkins['silverIngot']} />
+                  <StockInput label="Gold" value={stock.goldIngot} onChange={(v) => handleStockChange('goldIngot', v)} icon={cloudSkins['goldIngot'] || "👑"} isImage={!!cloudSkins['goldIngot']} />
+                  <StockInput label="Adamant" value={stock.adamantiumIngot} onChange={(v) => handleStockChange('adamantiumIngot', v)} icon={cloudSkins['adamantiumIngot'] || "💎"} isImage={!!cloudSkins['adamantiumIngot']} />
+                  <StockInput label="Dragon" value={stock.dragonGlassIngot} onChange={(v) => handleStockChange('dragonGlassIngot', v)} icon={cloudSkins['dragonGlassIngot'] || "🔮"} isImage={!!cloudSkins['dragonGlassIngot']} />
                 </div>
               </div>
             </div>
@@ -449,7 +463,10 @@ const App: React.FC = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-2 mb-4 text-center uppercase tracking-widest font-bold text-[8px] font-retro">
                          <div className="bg-[#1a0f0a] p-2 border border-[#5d4037] shadow-inner">
-                            <div className="text-[#8d6e63] mb-0.5">Fuel</div>
+                            <div className="text-[#8d6e63] mb-0.5 flex items-center justify-center">
+                              {oreSkins['Coal'] && <img src={oreSkins['Coal']} className="w-2 h-2 object-contain mr-1" alt="coal" />}
+                              Coal Needed
+                            </div>
                             <div className="text-xs font-retro text-[#d4af37]">{(recipe.requirements.coal * (max || 1)).toLocaleString()}</div>
                          </div>
                          <div className="bg-[#1a0f0a] p-2 border border-[#5d4037] shadow-inner">
