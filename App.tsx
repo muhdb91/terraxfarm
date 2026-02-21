@@ -413,7 +413,9 @@ const App: React.FC = () => {
                         <h3 className="text-lg font-medieval font-bold truncate text-[#d4c4a8] tracking-tight">{item.name}</h3>
                         {item.is_pro && <div className="w-2 h-2 bg-purple-500 shadow-[0_0_8px_purple] mt-1.5 animate-pulse"></div>}
                       </div>
-                      <div className="text-amber-500 font-retro font-bold text-base mt-1 tracking-tighter">{item.price}</div>
+                      <div className="text-amber-500 font-retro font-bold text-base mt-1 tracking-tighter">
+                        {(item.price || '').replace(/\d+/g, (n) => parseInt(n).toLocaleString())}
+                      </div>
                     </div>
                   </div>
                   <div className="px-6 pb-6 pt-1 flex-1"><div className="bg-[#1a0f0a] p-4 border border-[#5d4037] h-full text-[#8d6e63] text-[10px] italic leading-relaxed line-clamp-3">"{item.description || 'Verified Trade Signal'}"</div></div>
