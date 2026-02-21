@@ -1,5 +1,5 @@
 {
-  "name": "TerraX Companion",
-  "description": "A feature-rich companion app for the TerraX clicking game, featuring a complex ingot forging calculator and a community marketplace for listing items.",
+  "name": "TerraX Forge",
+  "description": "An old-school retro fantasy companion for TerraX, featuring a complex smithy calculator and a scroll of trade for listing artifacts.",
   "requestFramePermissions": []
 }
