@@ -1,4 +1,4 @@
-export type TabType = 'calculator' | 'marketplace' | 'assets';
+export type TabType = 'calculator' | 'marketplace' | 'assets' | 'ideas';
 export type UserRole = 'guest' | 'admin' | 'pro';
 
 export interface RecipeRequirement {
@@ -89,5 +89,19 @@ export interface Advertisement {
   image_url: string;
   link_url?: string;
   title?: string;
+  created_at: string;
+}
+
+export interface IdeaItem {
+  id: string;
+  name: string;
+  description: string;
+  image_url: string;
+  rarity: Rarity;
+  materials: {
+    icon_url: string;
+    quantity: number;
+    name: string;
+  }[];
   created_at: string;
 }
