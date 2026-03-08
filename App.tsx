@@ -81,6 +81,7 @@ const App: React.FC = () => {
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const [patchNotes, setPatchNotes] = useState<PatchNote[]>([]);
   const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
+  const [ideaItems, setIdeaItems] = useState<IdeaItem[]>([]);
   const [showNewsModal, setShowNewsModal] = useState(false);
 
   const [stock, setStock] = useState<Stock>(() => {
@@ -97,6 +98,13 @@ const App: React.FC = () => {
   const [adminNewAsset, setAdminNewAsset] = useState({ type: 'ingot' as 'ingot' | 'ore', targetId: '', icon_url: '', rarity: 'common' as Rarity });
   const [adminNewPatch, setAdminNewPatch] = useState({ title: '', content: '' });
   const [adminNewAd, setAdminNewAd] = useState({ image_url: '', link_url: '', title: '' });
+  const [adminNewIdea, setAdminNewIdea] = useState({ 
+    name: '', 
+    description: '', 
+    image_url: '', 
+    rarity: 'common' as Rarity,
+    materials: [{ name: '', quantity: 0, icon_url: '' }]
+  });
 
   // Fix: Defined filteredDatabase to handle item registry searching in the Marketplace tab.
   const filteredDatabase = useMemo(() => {
@@ -120,11 +128,13 @@ const App: React.FC = () => {
       const { data: ores } = await supabase.from('ore_skins').select('*');
       const { data: patches } = await supabase.from('patch_notes').select('*').order('created_at', { ascending: false });
       const { data: ads_data } = await supabase.from('advertisements').select('*').order('created_at', { ascending: false });
+      const { data: ideas } = await supabase.from('idea_items').select('*').order('created_at', { ascending: false });
       
       if (templates) setItemDatabase(templates);
       if (ads) setSaleItems(ads);
       if (patches) setPatchNotes(patches);
       if (ads_data) setAdvertisements(ads_data);
+      if (ideas) setIdeaItems(ideas);
       
       if (skins) {
           const skinMap: AssetImages = {};
@@ -397,6 +407,38 @@ const App: React.FC = () => {
     setIsSyncing(false);
   };
 
+  const handleAdminCreateIdea = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminNewIdea.name || !adminNewIdea.description || !adminNewIdea.image_url) {
+      notify("Name, Description, and Image are required.", "error");
+      return;
+    }
+    setIsSyncing(true);
+    const { error } = await supabase.from('idea_items').insert([adminNewIdea]);
+    if (!error) {
+      setAdminNewIdea({ 
+        name: '', 
+        description: '', 
+        image_url: '', 
+        rarity: 'common' as Rarity,
+        materials: [{ name: '', quantity: 0, icon_url: '' }]
+      });
+      notify("Idea published to the scroll.", "success");
+      fetchGlobalData();
+    } else notify("Idea Sync Failed: " + error.message, "error");
+    setIsSyncing(false);
+  };
+
+  const handleAdminDeleteIdea = async (id: string) => {
+    setIsSyncing(true);
+    const { error } = await supabase.from('idea_items').delete().eq('id', id);
+    if (!error) {
+      notify("Idea removed from the scroll.", "info");
+      fetchGlobalData();
+    } else notify("Idea Purge Failed: " + error.message, "error");
+    setIsSyncing(false);
+  };
+
   const handleAdminDeleteTemplate = async (id: string) => {
     setIsSyncing(true);
     const { error } = await supabase.from('market_templates').delete().eq('id', id);
@@ -448,6 +490,7 @@ const App: React.FC = () => {
       <div className="max-w-6xl mx-auto mb-4 flex justify-center space-x-2 flex-shrink-0">
         <TabButton active={activeTab === 'calculator'} onClick={() => setActiveTab('calculator')} label="Forge" color="cyan" />
         <TabButton active={activeTab === 'marketplace'} onClick={() => setActiveTab('marketplace')} label="Market" color="purple" />
+        <TabButton active={activeTab === 'ideas'} onClick={() => setActiveTab('ideas')} label="Ideas" color="emerald" />
         {userRole === 'admin' && <TabButton active={activeTab === 'assets'} onClick={() => setActiveTab('assets')} label="Admin" color="amber" />}
       </div>
 
@@ -478,12 +521,12 @@ const App: React.FC = () => {
                 </div>
                 <div className="h-1 bg-[#5d4037] my-4" />
                 <div className="grid grid-cols-2 gap-3">
-                  <StockInput label="Copper Ingot" value={stock.copperIngot} onChange={(v) => handleStockChange('copperIngot', v)} icon={cloudSkins['copperIngot'] || "🧱"} isImage={!!cloudSkins['copperIngot']} />
-                  <StockInput label="Iron Ingot" value={stock.ironIngot} onChange={(v) => handleStockChange('ironIngot', v)} icon={cloudSkins['ironIngot'] || "⚔️"} isImage={!!cloudSkins['ironIngot']} />
-                  <StockInput label="Silver Ingot" value={stock.silverIngot} onChange={(v) => handleStockChange('silverIngot', v)} icon={cloudSkins['silverIngot'] || "🪙"} isImage={!!cloudSkins['silverIngot']} />
-                  <StockInput label="Gold Ingot" value={stock.goldIngot} onChange={(v) => handleStockChange('goldIngot', v)} icon={cloudSkins['goldIngot'] || "👑"} isImage={!!cloudSkins['goldIngot']} />
-                  <StockInput label="Adamant Ingot" value={stock.adamantiumIngot} onChange={(v) => handleStockChange('adamantiumIngot', v)} icon={cloudSkins['adamantiumIngot'] || "💎"} isImage={!!cloudSkins['adamantiumIngot']} />
-                  <StockInput label="Dragon Glass Ingot" value={stock.dragonGlassIngot} onChange={(v) => handleStockChange('dragonGlassIngot', v)} icon={cloudSkins['dragonGlassIngot'] || "🔮"} isImage={!!cloudSkins['dragonGlassIngot']} />
+                  <StockInput label="Copper" value={stock.copperIngot} onChange={(v) => handleStockChange('copperIngot', v)} icon={cloudSkins['copperIngot'] || "🧱"} isImage={!!cloudSkins['copperIngot']} />
+                  <StockInput label="Iron" value={stock.ironIngot} onChange={(v) => handleStockChange('ironIngot', v)} icon={cloudSkins['ironIngot'] || "⚔️"} isImage={!!cloudSkins['ironIngot']} />
+                  <StockInput label="Silver" value={stock.silverIngot} onChange={(v) => handleStockChange('silverIngot', v)} icon={cloudSkins['silverIngot'] || "🪙"} isImage={!!cloudSkins['silverIngot']} />
+                  <StockInput label="Gold" value={stock.goldIngot} onChange={(v) => handleStockChange('goldIngot', v)} icon={cloudSkins['goldIngot'] || "👑"} isImage={!!cloudSkins['goldIngot']} />
+                  <StockInput label="Adamant" value={stock.adamantiumIngot} onChange={(v) => handleStockChange('adamantiumIngot', v)} icon={cloudSkins['adamantiumIngot'] || "💎"} isImage={!!cloudSkins['adamantiumIngot']} />
+                  <StockInput label="Dragon" value={stock.dragonGlassIngot} onChange={(v) => handleStockChange('dragonGlassIngot', v)} icon={cloudSkins['dragonGlassIngot'] || "🔮"} isImage={!!cloudSkins['dragonGlassIngot']} />
                 </div>
               </div>
             </div>
@@ -609,6 +652,61 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'ideas' && (
+          <div className="space-y-8 pb-8 animate-in fade-in duration-700">
+            <div className="text-center space-y-2 mb-10">
+              <h2 className="text-3xl font-medieval font-bold text-emerald-500 tracking-tighter uppercase">Scroll of Visions</h2>
+              <p className="text-[10px] font-retro text-[#8d6e63] uppercase tracking-[0.3em]">Ancient blueprints and conceptual artifacts from the masters</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {ideaItems.map(idea => (
+                <div key={idea.id} className={`bg-[#2b1d16] border-4 ${getRarityBorder(idea.rarity)} overflow-hidden shadow-2xl relative group flex flex-col ${getRarityShadow(idea.rarity)}`}>
+                  <div className="h-48 bg-[#1a0f0a] relative overflow-hidden">
+                    <img src={idea.image_url} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity duration-500" alt={idea.name} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#1a0f0a] to-transparent"></div>
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="text-2xl font-medieval font-bold text-[#d4c4a8] drop-shadow-lg">{idea.name}</h3>
+                      <div className={`text-[8px] font-retro font-bold uppercase tracking-widest ${idea.rarity ? `text-[${RARITY_COLORS[idea.rarity]}]` : 'text-[#8d6e63]'}`}>{idea.rarity}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6 space-y-6 flex-1 flex flex-col">
+                    <p className="text-xs font-serif-fantasy text-[#8d6e63] leading-relaxed italic">"{idea.description}"</p>
+                    
+                    <div className="space-y-3 mt-auto">
+                      <h4 className="text-[8px] font-retro font-bold text-[#d4af37] uppercase tracking-[0.2em] border-b border-[#5d4037] pb-1">Required Essences</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {idea.materials.map((mat, idx) => (
+                          <div key={idx} className="bg-[#1a0f0a] p-2 border border-[#5d4037] flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-[#2b1d16] border border-[#5d4037] flex items-center justify-center overflow-hidden">
+                              {mat.icon_url ? <img src={mat.icon_url} className="w-full h-full object-contain" alt="mat" /> : <span className="text-[10px]">✨</span>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[10px] font-bold text-[#d4c4a8] truncate">{mat.name}</div>
+                              <div className="text-[8px] font-retro text-amber-500">x{mat.quantity}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {userRole === 'admin' && (
+                    <button onClick={() => handleAdminDeleteIdea(idea.id)} className="absolute top-2 right-2 bg-red-900/80 border border-red-500 text-red-200 text-[8px] px-2 py-1 font-retro hover:bg-red-700 transition-all opacity-0 group-hover:opacity-100">PURGE</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {ideaItems.length === 0 && (
+              <div className="text-center py-20 bg-[#2b1d16] border-4 border-dashed border-[#5d4037]">
+                <p className="text-[#8d6e63] font-retro uppercase tracking-widest">The scroll is currently blank. Awaiting the master's vision.</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -825,6 +923,95 @@ const App: React.FC = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Idea Management */}
+              <div className="bg-[#2b1d16] border-4 border-[#5d4037] p-6 shadow-2xl lg:col-span-2">
+                <h2 className="text-xl font-medieval font-bold mb-6 text-emerald-500 uppercase tracking-tighter">Idea Forge</h2>
+                <form onSubmit={handleAdminCreateIdea} className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#1a0f0a] p-6 mb-6 border-2 border-[#5d4037]">
+                    <div className="space-y-4">
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Item Name</label>
+                        <input type="text" placeholder="Ancient Blade..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8]" value={adminNewIdea.name} onChange={(e) => setAdminNewIdea({...adminNewIdea, name: e.target.value})} />
+                      </div>
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Description</label>
+                        <textarea placeholder="A blade from the void..." className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 h-24 focus:border-amber-500 outline-none text-xs font-medium text-[#d4c4a8] resize-none" value={adminNewIdea.description} onChange={(e) => setAdminNewIdea({...adminNewIdea, description: e.target.value})}></textarea>
+                      </div>
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Rarity</label>
+                        <select className="w-full bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-bold text-[#d4c4a8] appearance-none" value={adminNewIdea.rarity} onChange={(e) => setAdminNewIdea({...adminNewIdea, rarity: e.target.value as Rarity})}>
+                          <option value="common">Common</option>
+                          <option value="uncommon">Uncommon</option>
+                          <option value="rare">Rare</option>
+                          <option value="epic">Epic</option>
+                          <option value="legendary">Legendary</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2"><label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Image Source</label>
+                        <div className="flex space-x-2">
+                          <input type="text" placeholder="https://..." className="flex-1 bg-[#1a0f0a] border-2 border-[#5d4037] px-4 py-2.5 focus:border-amber-500 outline-none text-xs font-retro text-emerald-500" value={adminNewIdea.image_url} onChange={(e) => setAdminNewIdea({...adminNewIdea, image_url: e.target.value})} />
+                          <label className="cursor-pointer bg-[#3e2723] border-2 border-[#8d6e63] px-4 py-2.5 text-[10px] font-bold text-amber-500 hover:bg-[#5d4037] transition-all flex items-center justify-center font-retro shadow-lg">
+                            UPLOAD
+                            <input type="file" className="hidden" accept="image/*,image/webp" onChange={(e) => handleLocalImageUpload(e, (url) => setAdminNewIdea({...adminNewIdea, image_url: url}))} />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[8px] font-bold text-[#8d6e63] uppercase tracking-[0.2em] ml-1 font-retro">Materials Required</label>
+                        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                          {adminNewIdea.materials.map((mat, idx) => (
+                            <div key={idx} className="grid grid-cols-1 gap-2 bg-[#1a0f0a] p-3 border border-[#5d4037] relative group">
+                              <button type="button" onClick={() => {
+                                const newMats = adminNewIdea.materials.filter((_, i) => i !== idx);
+                                setAdminNewIdea({...adminNewIdea, materials: newMats});
+                              }} className="absolute top-1 right-1 text-red-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">X</button>
+                              <div className="grid grid-cols-2 gap-2">
+                                <input type="text" placeholder="Material Name" className="bg-transparent border-b border-[#5d4037] text-[10px] outline-none text-[#d4c4a8] py-1" value={mat.name} onChange={(e) => {
+                                  const newMats = [...adminNewIdea.materials];
+                                  newMats[idx].name = e.target.value;
+                                  setAdminNewIdea({...adminNewIdea, materials: newMats});
+                                }} />
+                                <input type="number" placeholder="Quantity" className="bg-transparent border-b border-[#5d4037] text-[10px] outline-none text-amber-500 py-1" value={mat.quantity} onChange={(e) => {
+                                  const newMats = [...adminNewIdea.materials];
+                                  newMats[idx].quantity = parseInt(e.target.value) || 0;
+                                  setAdminNewIdea({...adminNewIdea, materials: newMats});
+                                }} />
+                              </div>
+                              <div className="flex space-x-2 items-center">
+                                <input type="text" placeholder="Icon URL" className="flex-1 bg-transparent border-b border-[#5d4037] text-[10px] outline-none text-blue-400 py-1" value={mat.icon_url} onChange={(e) => {
+                                  const newMats = [...adminNewIdea.materials];
+                                  newMats[idx].icon_url = e.target.value;
+                                  setAdminNewIdea({...adminNewIdea, materials: newMats});
+                                }} />
+                                <label className="cursor-pointer bg-[#3e2723] px-2 py-1 text-[8px] font-bold text-amber-500 hover:bg-[#5d4037] transition-all font-retro">
+                                  UP
+                                  <input type="file" className="hidden" accept="image/*,image/webp" onChange={(e) => handleLocalImageUpload(e, (url) => {
+                                    const newMats = [...adminNewIdea.materials];
+                                    newMats[idx].icon_url = url;
+                                    setAdminNewIdea({...adminNewIdea, materials: newMats});
+                                  })} />
+                                </label>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <button type="button" onClick={() => setAdminNewIdea({...adminNewIdea, materials: [...adminNewIdea.materials, {name: '', quantity: 0, icon_url: ''}]})} className="w-full py-2 border border-dashed border-emerald-500/50 text-[8px] text-emerald-500 uppercase font-retro hover:bg-emerald-500/10 transition-all">+ Add Material Requirement</button>
+                      </div>
+                      <button type="submit" disabled={isSyncing} className="w-full bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-500 border-2 border-emerald-500 font-medieval font-extrabold py-4 transition-all uppercase tracking-[0.2em] text-[10px] disabled:opacity-50 shadow-xl">FORGE IDEA BLUEPRINT</button>
+                    </div>
+                </form>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                  {ideaItems.map(idea => (
+                    <div key={idea.id} className={`bg-[#1a0f0a] p-3 border ${getRarityBorder(idea.rarity)} flex items-center space-x-3 group relative shadow-inner`}>
+                      <img src={idea.image_url} className={`w-12 h-12 object-cover bg-[#1a0f0a] border ${getRarityBorder(idea.rarity)}`} alt="idea" />
+                      <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold truncate text-[#d4c4a8] uppercase tracking-widest font-retro">{idea.name}</div>
+                          <div className="text-[8px] font-retro text-[#8d6e63] truncate">{idea.materials.length} Materials</div>
+                      </div>
+                      <button onClick={() => handleAdminDeleteIdea(idea.id)} className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 rounded font-bold text-[8px] uppercase font-retro">Purge</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -932,11 +1119,12 @@ const App: React.FC = () => {
   );
 };
 
-const TabButton = ({ active, onClick, label, color }: { active: boolean, onClick: () => void, label: string, color: 'cyan' | 'purple' | 'amber' }) => {
+const TabButton = ({ active, onClick, label, color }: { active: boolean, onClick: () => void, label: string, color: 'cyan' | 'purple' | 'amber' | 'emerald' }) => {
   const themes = {
     cyan: active ? 'bg-[#5d4037] border-amber-500 shadow-[0_0_20px_rgba(212,175,55,0.5)] text-white scale-105' : 'bg-[#2b1d16] border-[#5d4037] text-[#8d6e63] hover:text-[#d4c4a8]',
     purple: active ? 'bg-[#4b0082] border-[#9370db] shadow-[0_0_20px_rgba(147,112,219,0.5)] text-white scale-105' : 'bg-[#2b1d16] border-[#5d4037] text-[#8d6e63] hover:text-[#d4c4a8]',
     amber: active ? 'bg-[#b8860b] border-[#ffd700] shadow-[0_0_20px_rgba(255,215,0,0.5)] text-white scale-105' : 'bg-[#2b1d16] border-[#5d4037] text-[#8d6e63] hover:text-[#d4c4a8]',
+    emerald: active ? 'bg-[#065f46] border-[#10b981] shadow-[0_0_20px_rgba(16,185,129,0.5)] text-white scale-105' : 'bg-[#2b1d16] border-[#5d4037] text-[#8d6e63] hover:text-[#d4c4a8]',
   };
   return <button onClick={onClick} className={`px-10 py-3 font-bold transition-all border-4 font-retro text-[14px] tracking-[0.2em] uppercase ${themes[color]} relative overflow-hidden group`}>
     <span className="relative z-10">{label}</span>
